@@ -300,44 +300,37 @@ export class DatabaseService {
     }
   }
 
-  // Batch operations for consistency
-  static async batchUpdate(operations: Array<{
-    collection: string;
-    docId: string;
-    data: any;
-  }>, userId?: string): Promise<void> {
+  // Delete document with cascade
+  static async deleteDocument(collectionName: string, docId: string, userId?: string): Promise<void> {
     try {
-      const batch = writeBatch(db);
+      // Rate limiting
+      if (userId && !checkRateLimit(userId)) {
+        throw new Error('Rate limit exceeded. Please try again later.');
+      }
+
+      await deleteDoc(doc(db, collectionName, docId));
       
-      operations.forEach(({ collection: collectionName, docId, data }) => {
-        const docRef = doc(db, collectionName, docId);
-        batch.update(docRef, {
-          ...data,
-          updatedAt: serverTimestamp()
-        });
-      });
+      // Remove from cache
+      offlineCache.delete(`${collectionName}_${docId}`);
       
-      await batch.commit();
-      
-      // Create audit trail for batch operation
+      // Create audit trail
       if (userId) {
         await this.createAuditLog({
-          action: 'batch_update',
-          collection: 'multiple',
-          documentId: 'batch',
+          action: 'delete',
+          collection: collectionName,
+          documentId: docId,
           userId,
-          timestamp: new Date(),
-          data: operations
+          timestamp: new Date()
         });
       }
     } catch (error: any) {
-      await handleConnectionError(error, 'batch_update');
-      console.error('Error in batch update:', error);
-      throw new Error(`Batch update failed: ${error.message || 'Unknown error'}`);
+      await handleConnectionError(error, 'delete');
+      console.error(`Error deleting document from ${collectionName}:`, error);
+      throw new Error(`Failed to delete ${collectionName.slice(0, -1)}: ${error.message || 'Unknown error'}`);
     }
   }
 
-  // Real-time listener with caching and offline support - FIXED INDEX ISSUES
+  // Real-time listener with caching and offline support
   static subscribeToCollection(
     collectionName: string,
     constraints: QueryConstraint[] = [],
@@ -350,39 +343,22 @@ export class DatabaseService {
         listenerCache.get(cacheKey)!();
       }
 
-      // Create query without problematic compound indexes
-      let q;
+      // Create query with proper ordering
+      const queryConstraints = [...constraints];
       
-      // Handle specific collections that need indexes
-      if (collectionName === 'leads' && constraints.length > 0) {
-        // Use simple queries to avoid index requirements
-        const whereConstraints = constraints.filter(c => c.type === 'where');
-        const orderConstraints = constraints.filter(c => c.type === 'orderBy');
-        
-        if (whereConstraints.length > 0 && orderConstraints.length > 0) {
-          // Use only where clause to avoid compound index
-          q = query(collection(db, collectionName), ...whereConstraints);
-        } else {
-          q = query(collection(db, collectionName), ...constraints);
-        }
-      } else {
-        q = query(collection(db, collectionName), ...constraints);
+      // Add default ordering if none specified
+      const hasOrderBy = constraints.some(c => c.type === 'orderBy');
+      if (!hasOrderBy) {
+        queryConstraints.push(orderBy('createdAt', 'desc'));
       }
+
+      const q = query(collection(db, collectionName), ...queryConstraints);
       
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const data = snapshot.docs.map(doc => ({
           id: doc.id,
           ...this.convertTimestampsToDates(doc.data())
         }));
-        
-        // Sort data client-side if needed
-        if (collectionName === 'leads') {
-          data.sort((a, b) => {
-            const dateA = new Date(a.createdAt);
-            const dateB = new Date(b.createdAt);
-            return dateB.getTime() - dateA.getTime();
-          });
-        }
         
         // Cache the data
         data.forEach(item => {
@@ -404,6 +380,8 @@ export class DatabaseService {
         
         if (cachedData.length > 0) {
           callback(cachedData);
+        } else {
+          callback([]);
         }
       });
 
@@ -415,6 +393,7 @@ export class DatabaseService {
       return unsubscribe;
     } catch (error: any) {
       console.error(`Error setting up listener for ${collectionName}:`, error);
+      callback([]);
       return () => {};
     }
   }
@@ -457,7 +436,7 @@ export class DatabaseService {
     }
   }
 
-  // Get documents with pagination and caching - FIXED INDEX ISSUES
+  // Get documents with pagination and caching
   static async getDocuments(
     collectionName: string, 
     constraints: QueryConstraint[] = [],
@@ -471,15 +450,10 @@ export class DatabaseService {
         queryConstraints.push(startAfter(lastDoc));
       }
 
-      // Handle index issues for specific collections
-      if (collectionName === 'leads' || collectionName === 'event_registrations') {
-        // Use simple queries to avoid compound index requirements
-        const whereConstraints = queryConstraints.filter(c => c.type === 'where');
-        const limitConstraint = queryConstraints.find(c => c.type === 'limit');
-        
-        queryConstraints = whereConstraints;
-        if (limitConstraint) queryConstraints.push(limitConstraint);
-        if (lastDoc) queryConstraints.push(startAfter(lastDoc));
+      // Add default ordering if none specified
+      const hasOrderBy = constraints.some(c => c.type === 'orderBy');
+      if (!hasOrderBy) {
+        queryConstraints.push(orderBy('createdAt', 'desc'));
       }
 
       const q = query(collection(db, collectionName), ...queryConstraints);
@@ -489,13 +463,6 @@ export class DatabaseService {
         id: doc.id,
         ...this.convertTimestampsToDates(doc.data())
       }));
-
-      // Sort client-side if needed
-      documents.sort((a, b) => {
-        const dateA = new Date(a.createdAt || a.registrationDate || a.submittedAt);
-        const dateB = new Date(b.createdAt || b.registrationDate || b.submittedAt);
-        return dateB.getTime() - dateA.getTime();
-      });
 
       // Cache the documents
       documents.forEach(doc => {
@@ -522,36 +489,6 @@ export class DatabaseService {
       
       console.error(`Error getting documents from ${collectionName}:`, error);
       throw new Error(`Failed to get ${collectionName}: ${error.message || 'Unknown error'}`);
-    }
-  }
-
-  // Delete document with cascade
-  static async deleteDocument(collectionName: string, docId: string, userId?: string): Promise<void> {
-    try {
-      // Rate limiting
-      if (userId && !checkRateLimit(userId)) {
-        throw new Error('Rate limit exceeded. Please try again later.');
-      }
-
-      await deleteDoc(doc(db, collectionName, docId));
-      
-      // Remove from cache
-      offlineCache.delete(`${collectionName}_${docId}`);
-      
-      // Create audit trail
-      if (userId) {
-        await this.createAuditLog({
-          action: 'delete',
-          collection: collectionName,
-          documentId: docId,
-          userId,
-          timestamp: new Date()
-        });
-      }
-    } catch (error: any) {
-      await handleConnectionError(error, 'delete');
-      console.error(`Error deleting document from ${collectionName}:`, error);
-      throw new Error(`Failed to delete ${collectionName.slice(0, -1)}: ${error.message || 'Unknown error'}`);
     }
   }
 
@@ -714,41 +651,9 @@ export class DatabaseService {
     
     return data;
   }
-
-  // Cleanup orphaned records
-  static async cleanupOrphanedRecords(userId: string): Promise<void> {
-    try {
-      const batch = writeBatch(db);
-      
-      // Clean up leads - use simple query
-      const leadsQuery = query(collection(db, 'leads'), where('studentId', '==', userId));
-      const leadsSnapshot = await getDocs(leadsQuery);
-      leadsSnapshot.docs.forEach(doc => {
-        batch.delete(doc.ref);
-      });
-      
-      // Clean up applications - use simple query
-      const appsQuery = query(collection(db, 'applications'), where('email', '==', userId));
-      const appsSnapshot = await getDocs(appsQuery);
-      appsSnapshot.docs.forEach(doc => {
-        batch.delete(doc.ref);
-      });
-      
-      // Clean up event registrations - use simple query
-      const eventsQuery = query(collection(db, 'event_registrations'), where('email', '==', userId));
-      const eventsSnapshot = await getDocs(eventsQuery);
-      eventsSnapshot.docs.forEach(doc => {
-        batch.delete(doc.ref);
-      });
-      
-      await batch.commit();
-    } catch (error) {
-      console.error('Error cleaning up orphaned records:', error);
-    }
-  }
 }
 
-// Enhanced service functions with real-time capabilities - FIXED INDEX ISSUES
+// Enhanced service functions with real-time capabilities
 export const LeadService = {
   create: (data: any, userId?: string) => DatabaseService.createDocument('leads', data, userId),
   update: (id: string, data: any, userId?: string) => DatabaseService.updateDocument('leads', id, data, userId),
@@ -758,8 +663,6 @@ export const LeadService = {
     DatabaseService.getDocuments('leads', constraints, pageSize, lastDoc),
   subscribe: (constraints: QueryConstraint[], callback: (data: any[]) => void, cacheKey?: string) =>
     DatabaseService.subscribeToCollection('leads', constraints, callback, cacheKey),
-  batchUpdate: (operations: Array<{ docId: string; data: any }>, userId?: string) =>
-    DatabaseService.batchUpdate(operations.map(op => ({ collection: 'leads', ...op })), userId),
   // Simple queries to avoid index issues
   getByStudentId: (studentId: string, callback: (data: any[]) => void) =>
     DatabaseService.subscribeToCollection('leads', [where('studentId', '==', studentId)], callback, `leads_student_${studentId}`),
@@ -800,50 +703,8 @@ export const UserService = {
   getAll: (constraints?: QueryConstraint[], pageSize?: number, lastDoc?: DocumentSnapshot) => 
     DatabaseService.getDocuments('users', constraints, pageSize, lastDoc),
   subscribe: (constraints: QueryConstraint[], callback: (data: any[]) => void, cacheKey?: string) =>
-    DatabaseService.subscribeToCollection('users', constraints, callback, cacheKey),
-  cleanup: (userId: string) => DatabaseService.cleanupOrphanedRecords(userId)
+    DatabaseService.subscribeToCollection('users', constraints, callback, cacheKey)
 };
-
-// Real-time notification service
-export class NotificationService {
-  private static listeners = new Map<string, () => void>();
-
-  static subscribeToUserNotifications(userId: string, callback: (notifications: any[]) => void): () => void {
-    const constraints = [
-      where('userId', '==', userId),
-      where('read', '==', false),
-      limit(50)
-    ];
-
-    return DatabaseService.subscribeToCollection('notifications', constraints, callback, `notifications_${userId}`);
-  }
-
-  static async createNotification(data: {
-    userId: string;
-    title: string;
-    message: string;
-    type: 'info' | 'success' | 'warning' | 'error';
-    actionUrl?: string;
-  }): Promise<void> {
-    try {
-      await DatabaseService.createDocument('notifications', {
-        ...data,
-        read: false,
-        createdAt: new Date()
-      });
-    } catch (error) {
-      console.error('Error creating notification:', error);
-    }
-  }
-
-  static async markAsRead(notificationId: string): Promise<void> {
-    try {
-      await DatabaseService.updateDocument('notifications', notificationId, { read: true });
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
-  }
-}
 
 // Connection status utility
 export const getConnectionStatus = () => ({

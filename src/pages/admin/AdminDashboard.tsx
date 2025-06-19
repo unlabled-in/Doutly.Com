@@ -17,13 +17,16 @@ import {
   ArrowRight,
   UserPlus,
   Mail,
-  Shield
+  Shield,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { LeadService, ApplicationService, EventRegistrationService, UserService } from '../../lib/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import BackButton from '../../components/BackButton';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 interface Lead {
   id: string;
@@ -49,6 +52,16 @@ interface Application {
   email: string;
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: any;
+  skills?: string[];
+  experience?: string;
+  hourlyRate?: string;
+  bio?: string;
+  partnershipType?: string;
+  eventType?: string;
+  targetAudience?: string;
+  estimatedAttendees?: string;
+  budget?: string;
+  message?: string;
 }
 
 interface User {
@@ -58,6 +71,9 @@ interface User {
   role: string;
   createdAt: any;
   isActive: boolean;
+  phone?: string;
+  institution?: string;
+  skills?: string[];
 }
 
 const AdminDashboard: React.FC = () => {
@@ -71,40 +87,60 @@ const AdminDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   const [showUserForm, setShowUserForm] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [newUserData, setNewUserData] = useState({
     email: '',
     password: '',
     displayName: '',
-    role: 'student'
+    role: 'student',
+    phone: '',
+    institution: '',
+    skills: [] as string[]
   });
 
   useEffect(() => {
-    // Subscribe to all leads
-    const unsubscribeLeads = LeadService.subscribe([], (leadsData) => {
-      setLeads(leadsData);
+    let unsubscribeLeads: (() => void) | undefined;
+    let unsubscribeApplications: (() => void) | undefined;
+    let unsubscribeRegistrations: (() => void) | undefined;
+    let unsubscribeUsers: (() => void) | undefined;
+
+    try {
+      // Subscribe to all leads
+      unsubscribeLeads = LeadService.subscribe([], (leadsData) => {
+        setLeads(leadsData || []);
+        setLoading(false);
+      });
+
+      // Subscribe to all applications
+      unsubscribeApplications = ApplicationService.subscribe([], (applicationsData) => {
+        setApplications(applicationsData || []);
+      });
+
+      // Subscribe to event registrations
+      unsubscribeRegistrations = EventRegistrationService.subscribe([], (registrationsData) => {
+        setEventRegistrations(registrationsData || []);
+      });
+
+      // Subscribe to all users (excluding students for admin management)
+      unsubscribeUsers = UserService.subscribe([], (usersData) => {
+        // Filter to show only admin-manageable roles
+        const adminUsers = (usersData || []).filter(user => 
+          ['admin', 'vertical_head', 'manager', 'team_leader', 'tutor', 'freelancer', 'bda', 'sales'].includes(user.role)
+        );
+        setUsers(adminUsers);
+      });
+    } catch (error) {
+      console.error('Error setting up subscriptions:', error);
       setLoading(false);
-    });
-
-    // Subscribe to all applications
-    const unsubscribeApplications = ApplicationService.subscribe([], (applicationsData) => {
-      setApplications(applicationsData);
-    });
-
-    // Subscribe to event registrations
-    const unsubscribeRegistrations = EventRegistrationService.subscribe([], (registrationsData) => {
-      setEventRegistrations(registrationsData);
-    });
-
-    // Subscribe to all users
-    const unsubscribeUsers = UserService.subscribe([], (usersData) => {
-      setUsers(usersData);
-    });
+    }
 
     return () => {
-      unsubscribeLeads();
-      unsubscribeApplications();
-      unsubscribeRegistrations();
-      unsubscribeUsers();
+      unsubscribeLeads?.();
+      unsubscribeApplications?.();
+      unsubscribeRegistrations?.();
+      unsubscribeUsers?.();
     };
   }, []);
 
@@ -121,6 +157,70 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleApproveApplication = async (applicationId: string, type: string) => {
+    try {
+      await ApplicationService.update(applicationId, {
+        status: 'approved',
+        reviewedBy: userProfile?.displayName,
+        updatedAt: new Date()
+      }, userProfile?.uid);
+
+      // If it's a tutor application, create user account
+      if (type === 'tutor_application') {
+        const application = applications.find(app => app.id === applicationId);
+        if (application && application.email) {
+          try {
+            // Generate temporary password
+            const tempPassword = Math.random().toString(36).slice(-8);
+            
+            // Create Firebase Auth user
+            const userCredential = await createUserWithEmailAndPassword(auth, application.email, tempPassword);
+            
+            // Create user profile
+            const userProfile = {
+              uid: userCredential.user.uid,
+              email: application.email,
+              displayName: application.name || 'New Tutor',
+              role: 'tutor',
+              phone: '',
+              institution: '',
+              skills: application.skills || [],
+              experience: application.experience || '',
+              hourlyRate: application.hourlyRate ? parseInt(application.hourlyRate) : 0,
+              bio: application.bio || '',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              isActive: true,
+              profileComplete: true
+            };
+
+            await UserService.create(userProfile, userCredential.user.uid);
+            
+            // TODO: Send email with login credentials
+            alert(`Tutor approved! Temporary password: ${tempPassword}`);
+          } catch (error) {
+            console.error('Error creating tutor account:', error);
+            alert('Application approved but failed to create account. Please create manually.');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error approving application:', error);
+    }
+  };
+
+  const handleRejectApplication = async (applicationId: string) => {
+    try {
+      await ApplicationService.update(applicationId, {
+        status: 'rejected',
+        reviewedBy: userProfile?.displayName,
+        updatedAt: new Date()
+      }, userProfile?.uid);
+    } catch (error) {
+      console.error('Error rejecting application:', error);
+    }
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -128,26 +228,115 @@ const AdminDashboard: React.FC = () => {
       const userCredential = await createUserWithEmailAndPassword(auth, newUserData.email, newUserData.password);
       
       // Create user profile in Firestore
-      const userProfile = {
+      const userProfileData = {
         uid: userCredential.user.uid,
         email: newUserData.email,
         displayName: newUserData.displayName,
         role: newUserData.role,
+        phone: newUserData.phone,
+        institution: newUserData.institution,
+        skills: newUserData.skills,
         createdAt: new Date(),
         updatedAt: new Date(),
         isActive: true,
         profileComplete: true
       };
 
-      await UserService.create(userProfile, userCredential.user.uid);
+      await UserService.create(userProfileData, userCredential.user.uid);
       
       setShowUserForm(false);
-      setNewUserData({ email: '', password: '', displayName: '', role: 'student' });
+      setNewUserData({ 
+        email: '', 
+        password: '', 
+        displayName: '', 
+        role: 'student',
+        phone: '',
+        institution: '',
+        skills: []
+      });
       alert('User created successfully!');
     } catch (error: any) {
       console.error('Error creating user:', error);
       alert('Error creating user: ' + error.message);
     }
+  };
+
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    setNewUserData({
+      email: user.email,
+      password: '',
+      displayName: user.displayName,
+      role: user.role,
+      phone: user.phone || '',
+      institution: user.institution || '',
+      skills: user.skills || []
+    });
+    setShowUserForm(true);
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    try {
+      const updateData = {
+        displayName: newUserData.displayName,
+        role: newUserData.role,
+        phone: newUserData.phone,
+        institution: newUserData.institution,
+        skills: newUserData.skills,
+        updatedAt: new Date()
+      };
+
+      await UserService.update(editingUser.uid, updateData, userProfile?.uid);
+      
+      setShowUserForm(false);
+      setEditingUser(null);
+      setNewUserData({ 
+        email: '', 
+        password: '', 
+        displayName: '', 
+        role: 'student',
+        phone: '',
+        institution: '',
+        skills: []
+      });
+      alert('User updated successfully!');
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      alert('Error updating user: ' + error.message);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    try {
+      await UserService.delete(userToDelete.uid, userProfile?.uid);
+      setShowDeleteDialog(false);
+      setUserToDelete(null);
+      alert('User deleted successfully!');
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      alert('Error deleting user: ' + error.message);
+    }
+  };
+
+  const addSkill = (skill: string) => {
+    if (skill.trim() && !newUserData.skills.includes(skill.trim())) {
+      setNewUserData(prev => ({
+        ...prev,
+        skills: [...prev.skills, skill.trim()]
+      }));
+    }
+  };
+
+  const removeSkill = (skill: string) => {
+    setNewUserData(prev => ({
+      ...prev,
+      skills: prev.skills.filter(s => s !== skill)
+    }));
   };
 
   const getStatusColor = (status: string) => {
@@ -391,7 +580,19 @@ const AdminDashboard: React.FC = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
         <button
-          onClick={() => setShowUserForm(true)}
+          onClick={() => {
+            setEditingUser(null);
+            setNewUserData({ 
+              email: '', 
+              password: '', 
+              displayName: '', 
+              role: 'tutor',
+              phone: '',
+              institution: '',
+              skills: []
+            });
+            setShowUserForm(true);
+          }}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
         >
           <UserPlus className="h-4 w-4" />
@@ -401,7 +602,8 @@ const AdminDashboard: React.FC = () => {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-6 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">All Users ({totalUsers})</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Team Members ({totalUsers})</h3>
+          <p className="text-sm text-gray-600 mt-1">Manage your team members and their roles</p>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -411,6 +613,7 @@ const AdminDashboard: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -420,11 +623,12 @@ const AdminDashboard: React.FC = () => {
                     <div>
                       <div className="text-sm font-medium text-gray-900">{user.displayName}</div>
                       <div className="text-sm text-gray-500">{user.email}</div>
+                      {user.phone && <div className="text-xs text-gray-400">{user.phone}</div>}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                      {user.role}
+                      {user.role.replace('_', ' ')}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -434,6 +638,25 @@ const AdminDashboard: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(user.createdAt?.toDate?.() || user.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleEditUser(user)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setUserToDelete(user);
+                          setShowDeleteDialog(true);
+                        }}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -451,26 +674,45 @@ const AdminDashboard: React.FC = () => {
       {/* Partnership Requests */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-6 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">Partnership Requests ({applications.filter(a => a.type === 'event_partnership').length})</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Partnership Requests ({applications.filter(a => a.type === 'partnership_application').length})</h3>
         </div>
         <div className="divide-y divide-gray-100">
-          {applications.filter(a => a.type === 'event_partnership').map((app) => (
+          {applications.filter(a => a.type === 'partnership_application').map((app) => (
             <div key={app.id} className="p-6 hover:bg-gray-50 transition-colors">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <h4 className="font-semibold text-gray-900">{app.organizationName || app.name}</h4>
                   <p className="text-sm text-gray-600">{app.email}</p>
+                  <p className="text-sm text-gray-500 mt-1">{app.eventType} • {app.estimatedAttendees} attendees</p>
                   <p className="text-xs text-gray-500 mt-1">
                     Submitted: {new Date(app.submittedAt?.toDate?.() || app.submittedAt).toLocaleDateString()}
                   </p>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(app.status)}`}>
-                  {app.status}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(app.status)}`}>
+                    {app.status}
+                  </span>
+                  {app.status === 'pending' && (
+                    <>
+                      <button
+                        onClick={() => handleApproveApplication(app.id, app.type)}
+                        className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleRejectApplication(app.id)}
+                        className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           ))}
-          {applications.filter(a => a.type === 'event_partnership').length === 0 && (
+          {applications.filter(a => a.type === 'partnership_application').length === 0 && (
             <div className="p-6 text-center text-gray-500">
               No partnership requests found
             </div>
@@ -490,13 +732,35 @@ const AdminDashboard: React.FC = () => {
                 <div className="flex-1">
                   <h4 className="font-semibold text-gray-900">{app.name}</h4>
                   <p className="text-sm text-gray-600">{app.email}</p>
+                  <p className="text-sm text-gray-500 mt-1">{app.experience} experience • ₹{app.hourlyRate}/hour</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Skills: {app.skills?.join(', ') || 'Not specified'}
+                  </p>
                   <p className="text-xs text-gray-500 mt-1">
                     Submitted: {new Date(app.submittedAt?.toDate?.() || app.submittedAt).toLocaleDateString()}
                   </p>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(app.status)}`}>
-                  {app.status}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(app.status)}`}>
+                    {app.status}
+                  </span>
+                  {app.status === 'pending' && (
+                    <>
+                      <button
+                        onClick={() => handleApproveApplication(app.id, app.type)}
+                        className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                      >
+                        Approve & Create Account
+                      </button>
+                      <button
+                        onClick={() => handleRejectApplication(app.id)}
+                        className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -520,6 +784,7 @@ const AdminDashboard: React.FC = () => {
                 <div className="flex-1">
                   <h4 className="font-semibold text-gray-900">{reg.name}</h4>
                   <p className="text-sm text-gray-600">{reg.eventTitle}</p>
+                  <p className="text-sm text-gray-500">{reg.email}</p>
                   <p className="text-xs text-gray-500 mt-1">
                     Registered: {new Date(reg.registrationDate?.toDate?.() || reg.registrationDate).toLocaleDateString()}
                   </p>
@@ -583,76 +848,142 @@ const AdminDashboard: React.FC = () => {
         {activeTab === 'users' && renderUsers()}
         {activeTab === 'approvals' && renderApprovals()}
 
-        {/* Create User Modal */}
+        {/* Create/Edit User Modal */}
         {showUserForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl max-w-md w-full">
+            <div className="bg-white rounded-xl max-w-2xl w-full max-h-96 overflow-y-auto">
               <div className="p-6 border-b border-gray-100">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">Create New User</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {editingUser ? 'Edit User' : 'Create New User'}
+                  </h3>
                   <button
-                    onClick={() => setShowUserForm(false)}
+                    onClick={() => {
+                      setShowUserForm(false);
+                      setEditingUser(null);
+                    }}
                     className="text-gray-400 hover:text-gray-600"
                   >
                     ×
                   </button>
                 </div>
               </div>
-              <form onSubmit={handleCreateUser} className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                  <input
-                    type="email"
-                    value={newUserData.email}
-                    onChange={(e) => setNewUserData(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
+              <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser} className="p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                    <input
+                      type="email"
+                      value={newUserData.email}
+                      onChange={(e) => setNewUserData(prev => ({ ...prev, email: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                      disabled={!!editingUser}
+                    />
+                  </div>
+                  {!editingUser && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                      <input
+                        type="password"
+                        value={newUserData.password}
+                        onChange={(e) => setNewUserData(prev => ({ ...prev, password: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Display Name *</label>
+                    <input
+                      type="text"
+                      value={newUserData.displayName}
+                      onChange={(e) => setNewUserData(prev => ({ ...prev, displayName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+                    <select
+                      value={newUserData.role}
+                      onChange={(e) => setNewUserData(prev => ({ ...prev, role: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    >
+                      <option value="tutor">Tutor</option>
+                      <option value="freelancer">Freelancer</option>
+                      <option value="team_leader">Team Leader</option>
+                      <option value="manager">Manager</option>
+                      <option value="vertical_head">Vertical Head</option>
+                      <option value="bda">BDA</option>
+                      <option value="sales">Sales</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={newUserData.phone}
+                      onChange={(e) => setNewUserData(prev => ({ ...prev, phone: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Institution</label>
+                    <input
+                      type="text"
+                      value={newUserData.institution}
+                      onChange={(e) => setNewUserData(prev => ({ ...prev, institution: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
                 </div>
+                
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-                  <input
-                    type="password"
-                    value={newUserData.password}
-                    onChange={(e) => setNewUserData(prev => ({ ...prev, password: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                    minLength={6}
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Skills</label>
+                  <div className="flex space-x-2 mb-2">
+                    <input
+                      type="text"
+                      placeholder="Add skill"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addSkill(e.currentTarget.value);
+                          e.currentTarget.value = '';
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {newUserData.skills.map((skill, index) => (
+                      <span
+                        key={index}
+                        className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm flex items-center space-x-1"
+                      >
+                        <span>{skill}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeSkill(skill)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Display Name *</label>
-                  <input
-                    type="text"
-                    value={newUserData.displayName}
-                    onChange={(e) => setNewUserData(prev => ({ ...prev, displayName: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-                  <select
-                    value={newUserData.role}
-                    onChange={(e) => setNewUserData(prev => ({ ...prev, role: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  >
-                    <option value="student">Student</option>
-                    <option value="tutor">Tutor</option>
-                    <option value="freelancer">Freelancer</option>
-                    <option value="team_leader">Team Leader</option>
-                    <option value="manager">Manager</option>
-                    <option value="vertical_head">Vertical Head</option>
-                    <option value="bda">BDA</option>
-                    <option value="sales">Sales</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
+
                 <div className="flex space-x-3 pt-4">
                   <button
                     type="button"
-                    onClick={() => setShowUserForm(false)}
+                    onClick={() => {
+                      setShowUserForm(false);
+                      setEditingUser(null);
+                    }}
                     className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Cancel
@@ -661,13 +992,24 @@ const AdminDashboard: React.FC = () => {
                     type="submit"
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    Create User
+                    {editingUser ? 'Update User' : 'Create User'}
                   </button>
                 </div>
               </form>
             </div>
           </div>
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <ConfirmDialog
+          isOpen={showDeleteDialog}
+          onClose={() => setShowDeleteDialog(false)}
+          onConfirm={handleDeleteUser}
+          title="Delete User"
+          message={`Are you sure you want to delete ${userToDelete?.displayName}? This action cannot be undone.`}
+          confirmText="Delete"
+          type="danger"
+        />
       </div>
     </div>
   );

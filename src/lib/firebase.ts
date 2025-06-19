@@ -55,26 +55,6 @@ export const retryConnection = async (): Promise<boolean> => {
   }
 };
 
-// Check if we're in development and avoid emulators in production
-const isDevelopment = import.meta.env.DEV && window.location.hostname === 'localhost';
-
-if (isDevelopment) {
-  try {
-    // Only connect to emulators in development
-    if (!auth._delegate._config.emulator) {
-      connectAuthEmulator(auth, "http://localhost:9099");
-    }
-    if (!db._delegate._databaseId.projectId.includes('demo-')) {
-      connectFirestoreEmulator(db, 'localhost', 8080);
-    }
-    if (!storage._delegate._host.includes('localhost')) {
-      connectStorageEmulator(storage, "localhost", 9199);
-    }
-  } catch (error) {
-    console.log('Emulators already connected or not available');
-  }
-}
-
 // Export connection utilities
 export const isFirebaseOnline = () => isOnline;
 export const getConnectionRetryCount = () => connectionRetryCount;
