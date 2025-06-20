@@ -12,9 +12,10 @@ import {
   Send,
   CheckCircle
 } from 'lucide-react';
-import { EventRegistrationService } from '../lib/database';
+import { ApplicationService, EventRegistrationService } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import BackButton from '../components/BackButton';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Events: React.FC = () => {
   const { userProfile } = useAuth();
@@ -23,6 +24,7 @@ const Events: React.FC = () => {
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [showPartnerForm, setShowPartnerForm] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
   const [registrationData, setRegistrationData] = useState({
     name: userProfile?.displayName || '',
     email: userProfile?.email || '',
@@ -38,7 +40,9 @@ const Events: React.FC = () => {
     eventType: '',
     description: '',
     expectedAttendees: '',
-    budget: ''
+    budget: '',
+    website: '',
+    partnershipType: 'event_hosting'
   });
 
   // Real events data - replace with Firebase data
@@ -168,6 +172,7 @@ const Events: React.FC = () => {
 
   const handleRegistrationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     
     try {
       const registrationDoc = {
@@ -195,11 +200,14 @@ const Events: React.FC = () => {
     } catch (error) {
       console.error('Error submitting registration:', error);
       alert('Error submitting registration. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handlePartnerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     
     try {
       const partnershipDoc = {
@@ -207,11 +215,12 @@ const Events: React.FC = () => {
         type: 'event_partnership',
         status: 'pending',
         submittedAt: new Date(),
-        priority: 'medium'
+        priority: 'medium',
+        message: partnerData.description
       };
 
       // Submit to applications collection for admin review
-      await EventRegistrationService.create(partnershipDoc, userProfile?.uid);
+      await ApplicationService.create(partnershipDoc, userProfile?.uid);
       
       setShowPartnerForm(false);
       setPartnerData({
@@ -222,13 +231,17 @@ const Events: React.FC = () => {
         eventType: '',
         description: '',
         expectedAttendees: '',
-        budget: ''
+        budget: '',
+        website: '',
+        partnershipType: 'event_hosting'
       });
       
       alert('Partnership request submitted successfully! Our team will review and contact you within 24-48 hours.');
     } catch (error) {
       console.error('Error submitting partnership request:', error);
       alert('Error submitting partnership request. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -463,9 +476,10 @@ const Events: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    disabled={loading}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
-                    Register
+                    {loading ? 'Registering...' : 'Register'}
                   </button>
                 </div>
               </form>
@@ -564,6 +578,16 @@ const Events: React.FC = () => {
                   </div>
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                  <input
+                    type="url"
+                    value={partnerData.website}
+                    onChange={(e) => setPartnerData(prev => ({ ...prev, website: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="https://yourcompany.com"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Event Description *</label>
                   <textarea
                     value={partnerData.description}
@@ -598,10 +622,17 @@ const Events: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+                    disabled={loading}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
                   >
-                    <Send className="h-4 w-4" />
-                    <span>Submit Partnership Request</span>
+                    {loading ? (
+                      <LoadingSpinner size="sm" text="Submitting..." />
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" />
+                        <span>Submit Partnership Request</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

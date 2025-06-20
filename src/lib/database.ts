@@ -118,7 +118,7 @@ export interface StandardizedLead {
 
 export interface StandardizedApplication {
   id?: string;
-  type: 'tutor_application' | 'partnership_application';
+  type: 'tutor_application' | 'partnership_application' | 'event_partnership';
   name?: string;
   organizationName?: string;
   contactName?: string;
@@ -145,6 +145,8 @@ export interface StandardizedApplication {
   priority: 'low' | 'medium' | 'high';
   reviewedBy?: string;
   reviewNotes?: string;
+  description?: string;
+  expectedAttendees?: string;
 }
 
 export interface StandardizedEventRegistration {
@@ -557,7 +559,9 @@ export class DatabaseService {
       message: data.message || null,
       priority: data.priority || 'medium',
       reviewedBy: data.reviewedBy || null,
-      reviewNotes: data.reviewNotes || null
+      reviewNotes: data.reviewNotes || null,
+      description: data.description || null,
+      expectedAttendees: data.expectedAttendees || null
     };
   }
 

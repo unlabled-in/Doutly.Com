@@ -19,7 +19,10 @@ import {
   Mail,
   Shield,
   Edit,
-  Trash2
+  Trash2,
+  Building,
+  Award,
+  Briefcase
 } from 'lucide-react';
 import { LeadService, ApplicationService, EventRegistrationService, UserService } from '../../lib/database';
 import { useAuth } from '../../contexts/AuthContext';
@@ -27,6 +30,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import BackButton from '../../components/BackButton';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 interface Lead {
   id: string;
@@ -62,6 +66,8 @@ interface Application {
   estimatedAttendees?: string;
   budget?: string;
   message?: string;
+  reviewedBy?: string;
+  reviewNotes?: string;
 }
 
 interface User {
@@ -90,11 +96,12 @@ const AdminDashboard: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [processingApplication, setProcessingApplication] = useState<string | null>(null);
   const [newUserData, setNewUserData] = useState({
     email: '',
     password: '',
     displayName: '',
-    role: 'student',
+    role: 'tutor',
     phone: '',
     institution: '',
     skills: [] as string[]
@@ -106,35 +113,40 @@ const AdminDashboard: React.FC = () => {
     let unsubscribeRegistrations: (() => void) | undefined;
     let unsubscribeUsers: (() => void) | undefined;
 
-    try {
-      // Subscribe to all leads
-      unsubscribeLeads = LeadService.subscribe([], (leadsData) => {
-        setLeads(leadsData || []);
+    const setupSubscriptions = async () => {
+      try {
+        // Subscribe to all leads
+        unsubscribeLeads = LeadService.subscribe([], (leadsData) => {
+          setLeads(leadsData || []);
+        });
+
+        // Subscribe to all applications
+        unsubscribeApplications = ApplicationService.subscribe([], (applicationsData) => {
+          setApplications(applicationsData || []);
+        });
+
+        // Subscribe to event registrations
+        unsubscribeRegistrations = EventRegistrationService.subscribe([], (registrationsData) => {
+          setEventRegistrations(registrationsData || []);
+        });
+
+        // Subscribe to all users (excluding students for admin management)
+        unsubscribeUsers = UserService.subscribe([], (usersData) => {
+          // Filter to show only admin-manageable roles
+          const adminUsers = (usersData || []).filter(user => 
+            ['admin', 'vertical_head', 'manager', 'team_leader', 'tutor', 'freelancer', 'bda', 'sales'].includes(user.role)
+          );
+          setUsers(adminUsers);
+        });
+
         setLoading(false);
-      });
+      } catch (error) {
+        console.error('Error setting up subscriptions:', error);
+        setLoading(false);
+      }
+    };
 
-      // Subscribe to all applications
-      unsubscribeApplications = ApplicationService.subscribe([], (applicationsData) => {
-        setApplications(applicationsData || []);
-      });
-
-      // Subscribe to event registrations
-      unsubscribeRegistrations = EventRegistrationService.subscribe([], (registrationsData) => {
-        setEventRegistrations(registrationsData || []);
-      });
-
-      // Subscribe to all users (excluding students for admin management)
-      unsubscribeUsers = UserService.subscribe([], (usersData) => {
-        // Filter to show only admin-manageable roles
-        const adminUsers = (usersData || []).filter(user => 
-          ['admin', 'vertical_head', 'manager', 'team_leader', 'tutor', 'freelancer', 'bda', 'sales'].includes(user.role)
-        );
-        setUsers(adminUsers);
-      });
-    } catch (error) {
-      console.error('Error setting up subscriptions:', error);
-      setLoading(false);
-    }
+    setupSubscriptions();
 
     return () => {
       unsubscribeLeads?.();
@@ -158,6 +170,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleApproveApplication = async (applicationId: string, type: string) => {
+    setProcessingApplication(applicationId);
     try {
       await ApplicationService.update(applicationId, {
         status: 'approved',
@@ -171,13 +184,13 @@ const AdminDashboard: React.FC = () => {
         if (application && application.email) {
           try {
             // Generate temporary password
-            const tempPassword = Math.random().toString(36).slice(-8);
+            const tempPassword = Math.random().toString(36).slice(-8) + 'A1!';
             
             // Create Firebase Auth user
             const userCredential = await createUserWithEmailAndPassword(auth, application.email, tempPassword);
             
             // Create user profile
-            const userProfile = {
+            const userProfileData = {
               uid: userCredential.user.uid,
               email: application.email,
               displayName: application.name || 'New Tutor',
@@ -194,30 +207,39 @@ const AdminDashboard: React.FC = () => {
               profileComplete: true
             };
 
-            await UserService.create(userProfile, userCredential.user.uid);
+            await UserService.create(userProfileData, userCredential.user.uid);
             
-            // TODO: Send email with login credentials
-            alert(`Tutor approved! Temporary password: ${tempPassword}`);
+            alert(`Tutor approved and account created! Temporary password: ${tempPassword}`);
           } catch (error) {
             console.error('Error creating tutor account:', error);
             alert('Application approved but failed to create account. Please create manually.');
           }
         }
+      } else {
+        alert('Application approved successfully!');
       }
     } catch (error) {
       console.error('Error approving application:', error);
+      alert('Error approving application. Please try again.');
+    } finally {
+      setProcessingApplication(null);
     }
   };
 
   const handleRejectApplication = async (applicationId: string) => {
+    setProcessingApplication(applicationId);
     try {
       await ApplicationService.update(applicationId, {
         status: 'rejected',
         reviewedBy: userProfile?.displayName,
         updatedAt: new Date()
       }, userProfile?.uid);
+      alert('Application rejected successfully!');
     } catch (error) {
       console.error('Error rejecting application:', error);
+      alert('Error rejecting application. Please try again.');
+    } finally {
+      setProcessingApplication(null);
     }
   };
 
@@ -249,7 +271,7 @@ const AdminDashboard: React.FC = () => {
         email: '', 
         password: '', 
         displayName: '', 
-        role: 'student',
+        role: 'tutor',
         phone: '',
         institution: '',
         skills: []
@@ -297,7 +319,7 @@ const AdminDashboard: React.FC = () => {
         email: '', 
         password: '', 
         displayName: '', 
-        role: 'student',
+        role: 'tutor',
         phone: '',
         institution: '',
         skills: []
@@ -362,14 +384,40 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'admin': return Shield;
+      case 'vertical_head': return Building;
+      case 'manager': return Briefcase;
+      case 'team_leader': return Users;
+      case 'tutor': return Award;
+      case 'freelancer': return UserCheck;
+      case 'bda': return TrendingUp;
+      case 'sales': return BarChart3;
+      default: return Users;
+    }
+  };
+
   // Calculate real statistics from Firebase data
   const totalLeads = leads.length;
   const openLeads = leads.filter(l => l.status === 'open').length;
   const resolvedLeads = leads.filter(l => l.status === 'resolved').length;
   const pendingApplications = applications.filter(a => a.status === 'pending').length;
-  const totalUsers = users.length;
+  const totalEmployees = users.length;
   const activeUsers = users.filter(u => u.isActive).length;
   const pendingRegistrations = eventRegistrations.filter(r => r.status === 'pending').length;
+
+  // Employee categories
+  const employeeCategories = [
+    { role: 'admin', label: 'Admins', count: users.filter(u => u.role === 'admin').length, icon: Shield, color: 'text-red-600', bg: 'bg-red-100' },
+    { role: 'vertical_head', label: 'Vertical Heads', count: users.filter(u => u.role === 'vertical_head').length, icon: Building, color: 'text-purple-600', bg: 'bg-purple-100' },
+    { role: 'manager', label: 'Managers', count: users.filter(u => u.role === 'manager').length, icon: Briefcase, color: 'text-blue-600', bg: 'bg-blue-100' },
+    { role: 'team_leader', label: 'Team Leaders', count: users.filter(u => u.role === 'team_leader').length, icon: Users, color: 'text-green-600', bg: 'bg-green-100' },
+    { role: 'tutor', label: 'Tutors', count: users.filter(u => u.role === 'tutor').length, icon: Award, color: 'text-yellow-600', bg: 'bg-yellow-100' },
+    { role: 'freelancer', label: 'Freelancers', count: users.filter(u => u.role === 'freelancer').length, icon: UserCheck, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+    { role: 'bda', label: 'BDAs', count: users.filter(u => u.role === 'bda').length, icon: TrendingUp, color: 'text-pink-600', bg: 'bg-pink-100' },
+    { role: 'sales', label: 'Sales', count: users.filter(u => u.role === 'sales').length, icon: BarChart3, color: 'text-orange-600', bg: 'bg-orange-100' }
+  ];
 
   const stats = [
     {
@@ -518,8 +566,7 @@ const AdminDashboard: React.FC = () => {
         <div className="max-h-96 overflow-y-auto">
           {loading ? (
             <div className="p-6 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-gray-600 mt-2">Loading leads...</p>
+              <LoadingSpinner text="Loading leads..." />
             </div>
           ) : filteredLeads.length === 0 ? (
             <div className="p-6 text-center">
@@ -578,7 +625,7 @@ const AdminDashboard: React.FC = () => {
   const renderUsers = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Employee Management</h2>
         <button
           onClick={() => {
             setEditingUser(null);
@@ -596,20 +643,88 @@ const AdminDashboard: React.FC = () => {
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
         >
           <UserPlus className="h-4 w-4" />
-          <span>Create User</span>
+          <span>Create Employee</span>
         </button>
       </div>
 
+      {/* Employee Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{totalEmployees}</p>
+              <p className="text-sm text-gray-600">Total Employees</p>
+            </div>
+            <div className="p-3 rounded-lg bg-blue-100">
+              <Users className="h-6 w-6 text-blue-600" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{activeUsers}</p>
+              <p className="text-sm text-gray-600">Active Users</p>
+            </div>
+            <div className="p-3 rounded-lg bg-green-100">
+              <CheckCircle className="h-6 w-6 text-green-600" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{users.filter(u => u.role === 'tutor').length}</p>
+              <p className="text-sm text-gray-600">Tutors</p>
+            </div>
+            <div className="p-3 rounded-lg bg-yellow-100">
+              <Award className="h-6 w-6 text-yellow-600" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{users.filter(u => u.role === 'manager').length}</p>
+              <p className="text-sm text-gray-600">Managers</p>
+            </div>
+            <div className="p-3 rounded-lg bg-purple-100">
+              <Briefcase className="h-6 w-6 text-purple-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Employee Categories */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Employee Categories</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {employeeCategories.map((category) => (
+            <div key={category.role} className="p-4 border border-gray-200 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <div className={`p-2 rounded-lg ${category.bg}`}>
+                  <category.icon className={`h-5 w-5 ${category.color}`} />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">{category.count}</p>
+                  <p className="text-sm text-gray-600">{category.label}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Employee List */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-6 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">Team Members ({totalUsers})</h3>
-          <p className="text-sm text-gray-600 mt-1">Manage your team members and their roles</p>
+          <h3 className="text-lg font-semibold text-gray-900">Employee Details</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
@@ -617,49 +732,79 @@ const AdminDashboard: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user) => (
-                <tr key={user.uid} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{user.displayName}</div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
-                      {user.phone && <div className="text-xs text-gray-400">{user.phone}</div>}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                      {user.role.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {user.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(user.createdAt?.toDate?.() || user.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleEditUser(user)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setUserToDelete(user);
-                          setShowDeleteDialog(true);
-                        }}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <LoadingSpinner text="Loading employees..." />
                   </td>
                 </tr>
-              ))}
+              ) : users.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No employees found</p>
+                  </td>
+                </tr>
+              ) : (
+                users.map((user) => {
+                  const RoleIcon = getRoleIcon(user.role);
+                  return (
+                    <tr key={user.uid} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10">
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                              <span className="text-white font-medium text-sm">
+                                {user.displayName.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">{user.displayName}</div>
+                            <div className="text-sm text-gray-500">{user.email}</div>
+                            {user.phone && <div className="text-xs text-gray-400">{user.phone}</div>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
+                          <RoleIcon className="h-4 w-4 text-gray-500" />
+                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                            {user.role.replace('_', ' ')}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          {user.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(user.createdAt?.toDate?.() || user.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleEditUser(user)}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setUserToDelete(user);
+                              setShowDeleteDialog(true);
+                            }}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -669,53 +814,65 @@ const AdminDashboard: React.FC = () => {
 
   const renderApprovals = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Approvals</h2>
+      <h2 className="text-2xl font-bold text-gray-900">Approvals Management</h2>
       
       {/* Partnership Requests */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-6 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">Partnership Requests ({applications.filter(a => a.type === 'partnership_application').length})</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Partnership Requests ({applications.filter(a => a.type === 'partnership_application' || a.type === 'event_partnership').length})</h3>
         </div>
         <div className="divide-y divide-gray-100">
-          {applications.filter(a => a.type === 'partnership_application').map((app) => (
-            <div key={app.id} className="p-6 hover:bg-gray-50 transition-colors">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900">{app.organizationName || app.name}</h4>
-                  <p className="text-sm text-gray-600">{app.email}</p>
-                  <p className="text-sm text-gray-500 mt-1">{app.eventType} • {app.estimatedAttendees} attendees</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Submitted: {new Date(app.submittedAt?.toDate?.() || app.submittedAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(app.status)}`}>
-                    {app.status}
-                  </span>
-                  {app.status === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => handleApproveApplication(app.id, app.type)}
-                        className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleRejectApplication(app.id)}
-                        className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
-                      >
-                        Reject
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
+          {loading ? (
+            <div className="p-6 text-center">
+              <LoadingSpinner text="Loading partnership requests..." />
             </div>
-          ))}
-          {applications.filter(a => a.type === 'partnership_application').length === 0 && (
+          ) : applications.filter(a => a.type === 'partnership_application' || a.type === 'event_partnership').length === 0 ? (
             <div className="p-6 text-center text-gray-500">
               No partnership requests found
             </div>
+          ) : (
+            applications.filter(a => a.type === 'partnership_application' || a.type === 'event_partnership').map((app) => (
+              <div key={app.id} className="p-6 hover:bg-gray-50 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900">{app.organizationName || app.name}</h4>
+                    <p className="text-sm text-gray-600">{app.email}</p>
+                    <p className="text-sm text-gray-500 mt-1">{app.eventType} • {app.estimatedAttendees} attendees</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Submitted: {new Date(app.submittedAt?.toDate?.() || app.submittedAt).toLocaleDateString()}
+                    </p>
+                    {app.message && (
+                      <p className="text-sm text-gray-600 mt-2 bg-gray-50 p-2 rounded">
+                        "{app.message}"
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(app.status)}`}>
+                      {app.status}
+                    </span>
+                    {app.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleApproveApplication(app.id, app.type)}
+                          disabled={processingApplication === app.id}
+                          className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors disabled:opacity-50"
+                        >
+                          {processingApplication === app.id ? 'Processing...' : 'Approve'}
+                        </button>
+                        <button
+                          onClick={() => handleRejectApplication(app.id)}
+                          disabled={processingApplication === app.id}
+                          className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+                        >
+                          {processingApplication === app.id ? 'Processing...' : 'Reject'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>
@@ -726,48 +883,60 @@ const AdminDashboard: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900">Tutor Applications ({applications.filter(a => a.type === 'tutor_application').length})</h3>
         </div>
         <div className="divide-y divide-gray-100">
-          {applications.filter(a => a.type === 'tutor_application').map((app) => (
-            <div key={app.id} className="p-6 hover:bg-gray-50 transition-colors">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900">{app.name}</h4>
-                  <p className="text-sm text-gray-600">{app.email}</p>
-                  <p className="text-sm text-gray-500 mt-1">{app.experience} experience • ₹{app.hourlyRate}/hour</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Skills: {app.skills?.join(', ') || 'Not specified'}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Submitted: {new Date(app.submittedAt?.toDate?.() || app.submittedAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(app.status)}`}>
-                    {app.status}
-                  </span>
-                  {app.status === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => handleApproveApplication(app.id, app.type)}
-                        className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
-                      >
-                        Approve & Create Account
-                      </button>
-                      <button
-                        onClick={() => handleRejectApplication(app.id)}
-                        className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
-                      >
-                        Reject
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
+          {loading ? (
+            <div className="p-6 text-center">
+              <LoadingSpinner text="Loading tutor applications..." />
             </div>
-          ))}
-          {applications.filter(a => a.type === 'tutor_application').length === 0 && (
+          ) : applications.filter(a => a.type === 'tutor_application').length === 0 ? (
             <div className="p-6 text-center text-gray-500">
               No tutor applications found
             </div>
+          ) : (
+            applications.filter(a => a.type === 'tutor_application').map((app) => (
+              <div key={app.id} className="p-6 hover:bg-gray-50 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900">{app.name}</h4>
+                    <p className="text-sm text-gray-600">{app.email}</p>
+                    <p className="text-sm text-gray-500 mt-1">{app.experience} experience • ₹{app.hourlyRate}/hour</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Skills: {app.skills?.join(', ') || 'Not specified'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Submitted: {new Date(app.submittedAt?.toDate?.() || app.submittedAt).toLocaleDateString()}
+                    </p>
+                    {app.bio && (
+                      <p className="text-sm text-gray-600 mt-2 bg-gray-50 p-2 rounded">
+                        "{app.bio}"
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(app.status)}`}>
+                      {app.status}
+                    </span>
+                    {app.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleApproveApplication(app.id, app.type)}
+                          disabled={processingApplication === app.id}
+                          className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors disabled:opacity-50"
+                        >
+                          {processingApplication === app.id ? 'Processing...' : 'Approve & Create Account'}
+                        </button>
+                        <button
+                          onClick={() => handleRejectApplication(app.id)}
+                          disabled={processingApplication === app.id}
+                          className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+                        >
+                          {processingApplication === app.id ? 'Processing...' : 'Reject'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>
@@ -778,32 +947,45 @@ const AdminDashboard: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900">Event Registrations ({eventRegistrations.length})</h3>
         </div>
         <div className="divide-y divide-gray-100">
-          {eventRegistrations.map((reg) => (
-            <div key={reg.id} className="p-6 hover:bg-gray-50 transition-colors">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900">{reg.name}</h4>
-                  <p className="text-sm text-gray-600">{reg.eventTitle}</p>
-                  <p className="text-sm text-gray-500">{reg.email}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Registered: {new Date(reg.registrationDate?.toDate?.() || reg.registrationDate).toLocaleDateString()}
-                  </p>
-                </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(reg.status)}`}>
-                  {reg.status}
-                </span>
-              </div>
+          {loading ? (
+            <div className="p-6 text-center">
+              <LoadingSpinner text="Loading event registrations..." />
             </div>
-          ))}
-          {eventRegistrations.length === 0 && (
+          ) : eventRegistrations.length === 0 ? (
             <div className="p-6 text-center text-gray-500">
               No event registrations found
             </div>
+          ) : (
+            eventRegistrations.map((reg) => (
+              <div key={reg.id} className="p-6 hover:bg-gray-50 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900">{reg.name}</h4>
+                    <p className="text-sm text-gray-600">{reg.eventTitle}</p>
+                    <p className="text-sm text-gray-500">{reg.email}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Registered: {new Date(reg.registrationDate?.toDate?.() || reg.registrationDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(reg.status)}`}>
+                    {reg.status}
+                  </span>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>
     </div>
   );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <LoadingSpinner size="lg" text="Loading admin dashboard..." />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -823,7 +1005,7 @@ const AdminDashboard: React.FC = () => {
             <nav className="-mb-px flex space-x-8">
               {[
                 { id: 'overview', label: 'Overview', icon: BarChart3 },
-                { id: 'users', label: 'Users', icon: Users },
+                { id: 'users', label: 'Employees', icon: Users },
                 { id: 'approvals', label: 'Approvals', icon: CheckCircle }
               ].map((tab) => (
                 <button
@@ -855,7 +1037,7 @@ const AdminDashboard: React.FC = () => {
               <div className="p-6 border-b border-gray-100">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900">
-                    {editingUser ? 'Edit User' : 'Create New User'}
+                    {editingUser ? 'Edit Employee' : 'Create New Employee'}
                   </h3>
                   <button
                     onClick={() => {
@@ -992,7 +1174,7 @@ const AdminDashboard: React.FC = () => {
                     type="submit"
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    {editingUser ? 'Update User' : 'Create User'}
+                    {editingUser ? 'Update Employee' : 'Create Employee'}
                   </button>
                 </div>
               </form>
@@ -1005,7 +1187,7 @@ const AdminDashboard: React.FC = () => {
           isOpen={showDeleteDialog}
           onClose={() => setShowDeleteDialog(false)}
           onConfirm={handleDeleteUser}
-          title="Delete User"
+          title="Delete Employee"
           message={`Are you sure you want to delete ${userToDelete?.displayName}? This action cannot be undone.`}
           confirmText="Delete"
           type="danger"

@@ -111,6 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const redirectedRef = useRef(false);
+  const isInitialLoad = useRef(true);
 
   const signUp = async (email: string, password: string, profileData: Partial<UserProfile>) => {
     try {
@@ -162,9 +163,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Update last login time
       if (userCredential.user) {
-        await UserService.update(userCredential.user.uid, {
-          lastLoginAt: new Date()
-        }, userCredential.user.uid);
+        try {
+          await UserService.update(userCredential.user.uid, {
+            lastLoginAt: new Date()
+          }, userCredential.user.uid);
+        } catch (updateError) {
+          console.warn('Failed to update last login time:', updateError);
+        }
       }
     } catch (error) {
       console.error('Error in signIn:', error);
@@ -232,15 +237,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const detectedRole = getRoleFromEmail(user.email!);
             if (user.email!.endsWith('@doutly.com') && userDoc.role !== detectedRole) {
               const updatedProfile = { ...userDoc, role: detectedRole };
-              await UserService.update(user.uid, { role: detectedRole }, user.uid);
-              setUserProfile(updatedProfile);
+              try {
+                await UserService.update(user.uid, { role: detectedRole }, user.uid);
+                setUserProfile(updatedProfile);
+              } catch (updateError) {
+                console.warn('Failed to update user role:', updateError);
+                setUserProfile(userDoc);
+              }
             } else {
               setUserProfile(userDoc);
             }
 
             // Auto-redirect to dashboard if user is authenticated and on auth pages
             const currentPath = window.location.pathname;
-            if ((currentPath === '/signin' || currentPath === '/signup') && !redirectedRef.current) {
+            if ((currentPath === '/signin' || currentPath === '/signup') && !redirectedRef.current && !isInitialLoad.current) {
               redirectedRef.current = true;
               const dashboardPath = getDashboardPath(userDoc.role);
               setTimeout(() => {
@@ -261,16 +271,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               profileComplete: false
             });
             
-            await UserService.create(profile, user.uid);
-            setUserProfile(profile);
+            try {
+              await UserService.create(profile, user.uid);
+              setUserProfile(profile);
 
-            // Redirect to appropriate dashboard
-            if (!redirectedRef.current) {
-              redirectedRef.current = true;
-              const dashboardPath = getDashboardPath(profile.role);
-              setTimeout(() => {
-                window.location.href = dashboardPath;
-              }, 100);
+              // Redirect to appropriate dashboard
+              if (!redirectedRef.current && !isInitialLoad.current) {
+                redirectedRef.current = true;
+                const dashboardPath = getDashboardPath(profile.role);
+                setTimeout(() => {
+                  window.location.href = dashboardPath;
+                }, 100);
+              }
+            } catch (createError) {
+              console.error('Failed to create user profile:', createError);
+              setUserProfile(null);
             }
           }
         } catch (error) {
@@ -283,6 +298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       setLoading(false);
+      isInitialLoad.current = false;
     });
 
     return unsubscribe;
