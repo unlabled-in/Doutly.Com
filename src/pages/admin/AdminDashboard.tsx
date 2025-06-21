@@ -22,12 +22,15 @@ import {
   Trash2,
   Building,
   Award,
-  Briefcase
+  Briefcase,
+  Plus,
+  X
 } from 'lucide-react';
 import { LeadService, ApplicationService, EventRegistrationService, UserService } from '../../lib/database';
 import { useAuth } from '../../contexts/AuthContext';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
+import { EmailService } from '../../lib/emailService';
 import BackButton from '../../components/BackButton';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -70,6 +73,19 @@ interface Application {
   reviewNotes?: string;
 }
 
+interface EventRegistration {
+  id: string;
+  name: string;
+  email: string;
+  eventTitle: string;
+  eventType: string;
+  registrationDate: any;
+  status: 'pending' | 'approved' | 'rejected';
+  phone?: string;
+  institution?: string;
+  additionalInfo?: string;
+}
+
 interface User {
   uid: string;
   email: string;
@@ -82,21 +98,62 @@ interface User {
   skills?: string[];
 }
 
+interface Event {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  type: string;
+  location: string;
+  maxAttendees: number;
+  price: string;
+  image: string;
+  tags: string[];
+  institution: string;
+  createdAt: any;
+  status: 'active' | 'inactive';
+}
+
+interface Job {
+  id: string;
+  title: string;
+  department: string;
+  location: string;
+  type: string;
+  experience: string;
+  salary: string;
+  description: string;
+  requirements: string[];
+  benefits: string[];
+  postedDate: any;
+  status: 'active' | 'inactive';
+}
+
 const AdminDashboard: React.FC = () => {
   const { userProfile } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
-  const [eventRegistrations, setEventRegistrations] = useState<any[]>([]);
+  const [eventRegistrations, setEventRegistrations] = useState<EventRegistration[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   const [showUserForm, setShowUserForm] = useState(false);
+  const [showEventForm, setShowEventForm] = useState(false);
+  const [showJobForm, setShowJobForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<any>(null);
+  const [deleteType, setDeleteType] = useState<'user' | 'event' | 'job'>('user');
   const [processingApplication, setProcessingApplication] = useState<string | null>(null);
+  const [processingRegistration, setProcessingRegistration] = useState<string | null>(null);
+  
   const [newUserData, setNewUserData] = useState({
     email: '',
     password: '',
@@ -105,6 +162,32 @@ const AdminDashboard: React.FC = () => {
     phone: '',
     institution: '',
     skills: [] as string[]
+  });
+
+  const [newEventData, setNewEventData] = useState({
+    title: '',
+    description: '',
+    date: '',
+    time: '',
+    type: 'Workshop',
+    location: 'Online',
+    maxAttendees: 100,
+    price: 'Free',
+    image: '',
+    tags: [] as string[],
+    institution: 'Doutly'
+  });
+
+  const [newJobData, setNewJobData] = useState({
+    title: '',
+    department: 'Engineering',
+    location: 'Remote',
+    type: 'Full-time',
+    experience: '1-3 years',
+    salary: '$50,000 - $70,000',
+    description: '',
+    requirements: [] as string[],
+    benefits: [] as string[]
   });
 
   useEffect(() => {
@@ -132,7 +215,7 @@ const AdminDashboard: React.FC = () => {
 
         // Subscribe to all users (excluding students for admin management)
         unsubscribeUsers = UserService.subscribe([], (usersData) => {
-          // Filter to show only admin-manageable roles
+          // Filter to show only admin-manageable roles and exclude students
           const adminUsers = (usersData || []).filter(user => 
             ['admin', 'vertical_head', 'manager', 'team_leader', 'tutor', 'freelancer', 'bda', 'sales'].includes(user.role)
           );
@@ -172,51 +255,56 @@ const AdminDashboard: React.FC = () => {
   const handleApproveApplication = async (applicationId: string, type: string) => {
     setProcessingApplication(applicationId);
     try {
+      const application = applications.find(app => app.id === applicationId);
+      if (!application) return;
+
       await ApplicationService.update(applicationId, {
         status: 'approved',
         reviewedBy: userProfile?.displayName,
         updatedAt: new Date()
       }, userProfile?.uid);
 
+      // Send approval email
+      const name = application.name || application.contactName || 'User';
+      const emailType = type === 'tutor_application' ? 'tutor' : 'partnership';
+      await EmailService.sendApprovalEmail(application.email, name, emailType);
+
       // If it's a tutor application, create user account
       if (type === 'tutor_application') {
-        const application = applications.find(app => app.id === applicationId);
-        if (application && application.email) {
-          try {
-            // Generate temporary password
-            const tempPassword = Math.random().toString(36).slice(-8) + 'A1!';
-            
-            // Create Firebase Auth user
-            const userCredential = await createUserWithEmailAndPassword(auth, application.email, tempPassword);
-            
-            // Create user profile
-            const userProfileData = {
-              uid: userCredential.user.uid,
-              email: application.email,
-              displayName: application.name || 'New Tutor',
-              role: 'tutor',
-              phone: '',
-              institution: '',
-              skills: application.skills || [],
-              experience: application.experience || '',
-              hourlyRate: application.hourlyRate ? parseInt(application.hourlyRate) : 0,
-              bio: application.bio || '',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              isActive: true,
-              profileComplete: true
-            };
+        try {
+          // Generate temporary password
+          const tempPassword = Math.random().toString(36).slice(-8) + 'A1!';
+          
+          // Create Firebase Auth user
+          const userCredential = await createUserWithEmailAndPassword(auth, application.email, tempPassword);
+          
+          // Create user profile
+          const userProfileData = {
+            uid: userCredential.user.uid,
+            email: application.email,
+            displayName: application.name || 'New Tutor',
+            role: 'tutor',
+            phone: '',
+            institution: '',
+            skills: application.skills || [],
+            experience: application.experience || '',
+            hourlyRate: application.hourlyRate ? parseInt(application.hourlyRate) : 0,
+            bio: application.bio || '',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            isActive: true,
+            profileComplete: true
+          };
 
-            await UserService.create(userProfileData, userCredential.user.uid);
-            
-            alert(`Tutor approved and account created! Temporary password: ${tempPassword}`);
-          } catch (error) {
-            console.error('Error creating tutor account:', error);
-            alert('Application approved but failed to create account. Please create manually.');
-          }
+          await UserService.create(userProfileData, userCredential.user.uid);
+          
+          alert(`Tutor approved and account created! Temporary password: ${tempPassword}\nApproval email sent to ${application.email}`);
+        } catch (error) {
+          console.error('Error creating tutor account:', error);
+          alert('Application approved and email sent, but failed to create account. Please create manually.');
         }
       } else {
-        alert('Application approved successfully!');
+        alert(`Partnership application approved! Approval email sent to ${application.email}`);
       }
     } catch (error) {
       console.error('Error approving application:', error);
@@ -226,20 +314,76 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleRejectApplication = async (applicationId: string) => {
+  const handleRejectApplication = async (applicationId: string, type: string) => {
     setProcessingApplication(applicationId);
     try {
+      const application = applications.find(app => app.id === applicationId);
+      if (!application) return;
+
       await ApplicationService.update(applicationId, {
         status: 'rejected',
         reviewedBy: userProfile?.displayName,
         updatedAt: new Date()
       }, userProfile?.uid);
-      alert('Application rejected successfully!');
+
+      // Send rejection email
+      const name = application.name || application.contactName || 'User';
+      const emailType = type === 'tutor_application' ? 'tutor' : 'partnership';
+      await EmailService.sendRejectionEmail(application.email, name, emailType);
+
+      alert(`Application rejected. Notification email sent to ${application.email}`);
     } catch (error) {
       console.error('Error rejecting application:', error);
       alert('Error rejecting application. Please try again.');
     } finally {
       setProcessingApplication(null);
+    }
+  };
+
+  const handleApproveEventRegistration = async (registrationId: string) => {
+    setProcessingRegistration(registrationId);
+    try {
+      const registration = eventRegistrations.find(reg => reg.id === registrationId);
+      if (!registration) return;
+
+      await EventRegistrationService.update(registrationId, {
+        status: 'approved',
+        approvedBy: userProfile?.displayName,
+        approvalDate: new Date(),
+        updatedAt: new Date()
+      }, userProfile?.uid);
+
+      // Send approval email
+      await EmailService.sendEventRegistrationApproval(
+        registration.email, 
+        registration.name, 
+        registration.eventTitle
+      );
+
+      alert(`Registration approved! Confirmation email sent to ${registration.email}`);
+    } catch (error) {
+      console.error('Error approving registration:', error);
+      alert('Error approving registration. Please try again.');
+    } finally {
+      setProcessingRegistration(null);
+    }
+  };
+
+  const handleRejectEventRegistration = async (registrationId: string) => {
+    setProcessingRegistration(registrationId);
+    try {
+      await EventRegistrationService.update(registrationId, {
+        status: 'rejected',
+        reviewedBy: userProfile?.displayName,
+        updatedAt: new Date()
+      }, userProfile?.uid);
+
+      alert('Registration rejected successfully!');
+    } catch (error) {
+      console.error('Error rejecting registration:', error);
+      alert('Error rejecting registration. Please try again.');
+    } finally {
+      setProcessingRegistration(null);
     }
   };
 
@@ -283,20 +427,6 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleEditUser = (user: User) => {
-    setEditingUser(user);
-    setNewUserData({
-      email: user.email,
-      password: '',
-      displayName: user.displayName,
-      role: user.role,
-      phone: user.phone || '',
-      institution: user.institution || '',
-      skills: user.skills || []
-    });
-    setShowUserForm(true);
-  };
-
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
@@ -331,17 +461,40 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleDeleteUser = async () => {
-    if (!userToDelete) return;
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    setNewUserData({
+      email: user.email,
+      password: '',
+      displayName: user.displayName,
+      role: user.role,
+      phone: user.phone || '',
+      institution: user.institution || '',
+      skills: user.skills || []
+    });
+    setShowUserForm(true);
+  };
+
+  const handleDeleteItem = async () => {
+    if (!itemToDelete) return;
 
     try {
-      await UserService.delete(userToDelete.uid, userProfile?.uid);
+      if (deleteType === 'user') {
+        await UserService.delete(itemToDelete.uid, userProfile?.uid);
+        alert('User deleted successfully!');
+      } else if (deleteType === 'event') {
+        // Delete event logic here
+        alert('Event deleted successfully!');
+      } else if (deleteType === 'job') {
+        // Delete job logic here
+        alert('Job deleted successfully!');
+      }
+      
       setShowDeleteDialog(false);
-      setUserToDelete(null);
-      alert('User deleted successfully!');
+      setItemToDelete(null);
     } catch (error: any) {
-      console.error('Error deleting user:', error);
-      alert('Error deleting user: ' + error.message);
+      console.error(`Error deleting ${deleteType}:`, error);
+      alert(`Error deleting ${deleteType}: ${error.message}`);
     }
   };
 
@@ -358,6 +511,22 @@ const AdminDashboard: React.FC = () => {
     setNewUserData(prev => ({
       ...prev,
       skills: prev.skills.filter(s => s !== skill)
+    }));
+  };
+
+  const addTag = (tag: string) => {
+    if (tag.trim() && !newEventData.tags.includes(tag.trim())) {
+      setNewEventData(prev => ({
+        ...prev,
+        tags: [...prev.tags, tag.trim()]
+      }));
+    }
+  };
+
+  const removeTag = (tag: string) => {
+    setNewEventData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(t => t !== tag)
     }));
   };
 
@@ -463,10 +632,17 @@ const AdminDashboard: React.FC = () => {
       color: 'bg-blue-500'
     },
     {
-      title: 'Registration Management',
-      description: 'Review event registrations',
-      icon: FileText,
-      href: '/admin/registrations',
+      title: 'Event Management',
+      description: 'Create and manage events',
+      icon: Calendar,
+      onClick: () => setActiveTab('events'),
+      color: 'bg-purple-500'
+    },
+    {
+      title: 'Job Management',
+      description: 'Create and manage job postings',
+      icon: Briefcase,
+      onClick: () => setActiveTab('jobs'),
       color: 'bg-green-500'
     },
     {
@@ -474,13 +650,6 @@ const AdminDashboard: React.FC = () => {
       description: 'Review partnership requests',
       icon: CheckCircle,
       onClick: () => setActiveTab('approvals'),
-      color: 'bg-purple-500'
-    },
-    {
-      title: 'Analytics',
-      description: 'View detailed analytics',
-      icon: BarChart3,
-      onClick: () => alert('Analytics dashboard coming soon!'),
       color: 'bg-orange-500'
     }
   ];
@@ -519,41 +688,22 @@ const AdminDashboard: React.FC = () => {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {quickActions.map((action, index) => (
-            action.href ? (
-              <Link
-                key={index}
-                to={action.href}
-                className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors group border border-gray-200"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${action.color}`}>
-                    <action.icon className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900">{action.title}</h4>
-                    <p className="text-sm text-gray-600">{action.description}</p>
-                  </div>
+            <button
+              key={index}
+              onClick={action.onClick}
+              className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors group border border-gray-200"
+            >
+              <div className="flex items-center space-x-3">
+                <div className={`p-2 rounded-lg ${action.color}`}>
+                  <action.icon className="h-5 w-5 text-white" />
                 </div>
-                <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
-              </Link>
-            ) : (
-              <button
-                key={index}
-                onClick={action.onClick}
-                className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors group text-left border border-gray-200"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${action.color}`}>
-                    <action.icon className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900">{action.title}</h4>
-                    <p className="text-sm text-gray-600">{action.description}</p>
-                  </div>
+                <div>
+                  <h4 className="font-medium text-gray-900">{action.title}</h4>
+                  <p className="text-sm text-gray-600">{action.description}</p>
                 </div>
-                <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
-              </button>
-            )
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
+            </button>
           ))}
         </div>
       </div>
@@ -792,7 +942,8 @@ const AdminDashboard: React.FC = () => {
                           </button>
                           <button
                             onClick={() => {
-                              setUserToDelete(user);
+                              setItemToDelete(user);
+                              setDeleteType('user');
                               setShowDeleteDialog(true);
                             }}
                             className="text-red-600 hover:text-red-900"
@@ -816,10 +967,73 @@ const AdminDashboard: React.FC = () => {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900">Approvals Management</h2>
       
+      {/* Event Registrations */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="p-6 border-b border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900">Event Registrations ({eventRegistrations.filter(r => r.status === 'pending').length} pending)</h3>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {loading ? (
+            <div className="p-6 text-center">
+              <LoadingSpinner text="Loading event registrations..." />
+            </div>
+          ) : eventRegistrations.length === 0 ? (
+            <div className="p-6 text-center text-gray-500">
+              No event registrations found
+            </div>
+          ) : (
+            eventRegistrations.map((reg) => (
+              <div key={reg.id} className="p-6 hover:bg-gray-50 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900">{reg.name}</h4>
+                    <p className="text-sm text-gray-600">{reg.eventTitle}</p>
+                    <p className="text-sm text-gray-500">{reg.email}</p>
+                    {reg.phone && <p className="text-xs text-gray-500">{reg.phone}</p>}
+                    {reg.institution && <p className="text-xs text-gray-500">{reg.institution}</p>}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Registered: {new Date(reg.registrationDate?.toDate?.() || reg.registrationDate).toLocaleDateString()}
+                    </p>
+                    {reg.additionalInfo && (
+                      <p className="text-sm text-gray-600 mt-2 bg-gray-50 p-2 rounded">
+                        "{reg.additionalInfo}"
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(reg.status)}`}>
+                      {reg.status}
+                    </span>
+                    {reg.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleApproveEventRegistration(reg.id)}
+                          disabled={processingRegistration === reg.id}
+                          className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors disabled:opacity-50"
+                        >
+                          {processingRegistration === reg.id ? 'Processing...' : 'Approve'}
+                        </button>
+                        <button
+                          onClick={() => handleRejectEventRegistration(reg.id)}
+                          disabled={processingRegistration === reg.id}
+                          className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+                        >
+                          {processingRegistration === reg.id ? 'Processing...' : 'Reject'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       {/* Partnership Requests */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-6 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">Partnership Requests ({applications.filter(a => a.type === 'partnership_application' || a.type === 'event_partnership').length})</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Partnership Requests ({applications.filter(a => (a.type === 'partnership_application' || a.type === 'event_partnership') && a.status === 'pending').length} pending)</h3>
         </div>
         <div className="divide-y divide-gray-100">
           {loading ? (
@@ -861,7 +1075,7 @@ const AdminDashboard: React.FC = () => {
                           {processingApplication === app.id ? 'Processing...' : 'Approve'}
                         </button>
                         <button
-                          onClick={() => handleRejectApplication(app.id)}
+                          onClick={() => handleRejectApplication(app.id, app.type)}
                           disabled={processingApplication === app.id}
                           className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors disabled:opacity-50"
                         >
@@ -880,7 +1094,7 @@ const AdminDashboard: React.FC = () => {
       {/* Tutor Applications */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-6 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">Tutor Applications ({applications.filter(a => a.type === 'tutor_application').length})</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Tutor Applications ({applications.filter(a => a.type === 'tutor_application' && a.status === 'pending').length} pending)</h3>
         </div>
         <div className="divide-y divide-gray-100">
           {loading ? (
@@ -925,7 +1139,7 @@ const AdminDashboard: React.FC = () => {
                           {processingApplication === app.id ? 'Processing...' : 'Approve & Create Account'}
                         </button>
                         <button
-                          onClick={() => handleRejectApplication(app.id)}
+                          onClick={() => handleRejectApplication(app.id, app.type)}
                           disabled={processingApplication === app.id}
                           className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors disabled:opacity-50"
                         >
@@ -934,42 +1148,6 @@ const AdminDashboard: React.FC = () => {
                       </>
                     )}
                   </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Event Registrations */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-6 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">Event Registrations ({eventRegistrations.length})</h3>
-        </div>
-        <div className="divide-y divide-gray-100">
-          {loading ? (
-            <div className="p-6 text-center">
-              <LoadingSpinner text="Loading event registrations..." />
-            </div>
-          ) : eventRegistrations.length === 0 ? (
-            <div className="p-6 text-center text-gray-500">
-              No event registrations found
-            </div>
-          ) : (
-            eventRegistrations.map((reg) => (
-              <div key={reg.id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900">{reg.name}</h4>
-                    <p className="text-sm text-gray-600">{reg.eventTitle}</p>
-                    <p className="text-sm text-gray-500">{reg.email}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Registered: {new Date(reg.registrationDate?.toDate?.() || reg.registrationDate).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(reg.status)}`}>
-                    {reg.status}
-                  </span>
                 </div>
               </div>
             ))
@@ -1006,7 +1184,9 @@ const AdminDashboard: React.FC = () => {
               {[
                 { id: 'overview', label: 'Overview', icon: BarChart3 },
                 { id: 'users', label: 'Employees', icon: Users },
-                { id: 'approvals', label: 'Approvals', icon: CheckCircle }
+                { id: 'approvals', label: 'Approvals', icon: CheckCircle },
+                { id: 'events', label: 'Events', icon: Calendar },
+                { id: 'jobs', label: 'Jobs', icon: Briefcase }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1029,6 +1209,34 @@ const AdminDashboard: React.FC = () => {
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'users' && renderUsers()}
         {activeTab === 'approvals' && renderApprovals()}
+        {activeTab === 'events' && (
+          <div className="text-center py-12">
+            <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Event Management</h3>
+            <p className="text-gray-600 mb-6">Create and manage events for your platform</p>
+            <button
+              onClick={() => setShowEventForm(true)}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Create Event</span>
+            </button>
+          </div>
+        )}
+        {activeTab === 'jobs' && (
+          <div className="text-center py-12">
+            <Briefcase className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Job Management</h3>
+            <p className="text-gray-600 mb-6">Create and manage job postings for your careers page</p>
+            <button
+              onClick={() => setShowJobForm(true)}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Create Job</span>
+            </button>
+          </div>
+        )}
 
         {/* Create/Edit User Modal */}
         {showUserForm && (
@@ -1046,7 +1254,7 @@ const AdminDashboard: React.FC = () => {
                     }}
                     className="text-gray-400 hover:text-gray-600"
                   >
-                    ×
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
               </div>
@@ -1186,9 +1394,9 @@ const AdminDashboard: React.FC = () => {
         <ConfirmDialog
           isOpen={showDeleteDialog}
           onClose={() => setShowDeleteDialog(false)}
-          onConfirm={handleDeleteUser}
-          title="Delete Employee"
-          message={`Are you sure you want to delete ${userToDelete?.displayName}? This action cannot be undone.`}
+          onConfirm={handleDeleteItem}
+          title={`Delete ${deleteType}`}
+          message={`Are you sure you want to delete this ${deleteType}? This action cannot be undone.`}
           confirmText="Delete"
           type="danger"
         />

@@ -4,7 +4,7 @@ import { UserPlus, Eye, EyeOff, GraduationCap, BookOpen, Users, Code, Lightbulb,
 import { useAuth } from '../../contexts/AuthContext';
 
 const SignUp: React.FC = () => {
-  const [formData, set FormData] = useState({
+  const [formData, setFormData] = useState({
     displayName: '',
     email: '',
     password: '',
