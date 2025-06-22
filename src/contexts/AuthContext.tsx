@@ -145,12 +145,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await UserService.create(profile, user.uid);
       setUserProfile(profile);
 
-      // Set redirect flag and navigate
-      redirectedRef.current = true;
+      // Navigate to appropriate dashboard
       const dashboardPath = getDashboardPath(finalRole);
-      setTimeout(() => {
-        window.location.href = dashboardPath;
-      }, 100);
+      window.location.href = dashboardPath;
     } catch (error) {
       console.error('Error in signUp:', error);
       throw error;
