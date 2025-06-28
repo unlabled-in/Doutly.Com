@@ -147,7 +147,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Navigate to appropriate dashboard
       const dashboardPath = getDashboardPath(finalRole);
-      window.location.href = dashboardPath;
+      setTimeout(() => {
+        window.location.href = dashboardPath;
+      }, 100);
     } catch (error) {
       console.error('Error in signUp:', error);
       throw error;
