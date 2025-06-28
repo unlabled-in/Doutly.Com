@@ -25,6 +25,8 @@ import About from './pages/About';
 import BecomeTutor from './pages/BecomeTutor';
 import BecomePartner from './pages/BecomePartner';
 import RegistrationManagement from './pages/admin/RegistrationManagement';
+import CreatorPage from './pages/CreatorPage';
+import HackathonPage from './pages/HackathonPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ 
   children, 
@@ -184,6 +186,22 @@ const AppRoutes: React.FC = () => {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <RegistrationManagement />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/creator" 
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'vertical_head', 'manager']}>
+                <CreatorPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/hackathons" 
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'vertical_head', 'manager']}>
+                <HackathonPage />
               </ProtectedRoute>
             } 
           />

@@ -1,4 +1,4 @@
-// Email service for sending notifications
+// Enhanced Email service with updated contact information
 export interface EmailData {
   to: string;
   subject: string;
@@ -7,10 +7,11 @@ export interface EmailData {
 }
 
 export class EmailService {
-  private static readonly FROM_EMAIL = 'noreply@doutly.com';
+  private static readonly FROM_EMAIL = 'doutly4@gmail.com';
+  private static readonly SUPPORT_EMAIL = 'doutly4@gmail.com';
+  private static readonly PHONE = '8088887775';
   
   // In a real application, you would integrate with an email service like SendGrid, Mailgun, etc.
-  // For now, we'll simulate email sending and log to console
   static async sendEmail(emailData: EmailData): Promise<boolean> {
     try {
       console.log('📧 Email sent:', {
@@ -20,21 +21,6 @@ export class EmailService {
       });
       
       // In production, replace this with actual email service integration
-      // Example with SendGrid:
-      // const response = await fetch('https://api.sendgrid.v3/mail/send', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
-      //     'Content-Type': 'application/json'
-      //   },
-      //   body: JSON.stringify({
-      //     personalizations: [{ to: [{ email: emailData.to }] }],
-      //     from: { email: emailData.from || this.FROM_EMAIL },
-      //     subject: emailData.subject,
-      //     content: [{ type: 'text/html', value: emailData.html }]
-      //   })
-      // });
-      
       return true;
     } catch (error) {
       console.error('Failed to send email:', error);
@@ -92,7 +78,8 @@ export class EmailService {
         </div>
         
         <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; text-align: center; color: #6b7280; font-size: 14px;">
-          <p>If you have any questions, feel free to contact us at <a href="mailto:support@doutly.com" style="color: #3b82f6;">support@doutly.com</a></p>
+          <p>If you have any questions, feel free to contact us at <a href="mailto:${this.SUPPORT_EMAIL}" style="color: #3b82f6;">${this.SUPPORT_EMAIL}</a></p>
+          <p>Or call us at ${this.PHONE}</p>
           <p style="margin: 10px 0 0 0;">© 2024 Doutly. All rights reserved.</p>
         </div>
       </div>
@@ -108,7 +95,7 @@ export class EmailService {
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 30px;">
+        <div style="text-center; margin-bottom: 30px;">
           <h1 style="color: #3b82f6; margin: 0;">Doutly</h1>
           <p style="color: #6b7280; margin: 5px 0;">Education Reimagined</p>
         </div>
@@ -138,7 +125,8 @@ export class EmailService {
         </div>
         
         <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; text-align: center; color: #6b7280; font-size: 14px;">
-          <p>If you have any questions, feel free to contact us at <a href="mailto:support@doutly.com" style="color: #3b82f6;">support@doutly.com</a></p>
+          <p>If you have any questions, feel free to contact us at <a href="mailto:${this.SUPPORT_EMAIL}" style="color: #3b82f6;">${this.SUPPORT_EMAIL}</a></p>
+          <p>Or call us at ${this.PHONE}</p>
           <p style="margin: 10px 0 0 0;">© 2024 Doutly. All rights reserved.</p>
         </div>
       </div>
@@ -152,7 +140,7 @@ export class EmailService {
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 30px;">
+        <div style="text-center; margin-bottom: 30px;">
           <h1 style="color: #3b82f6; margin: 0;">Doutly</h1>
           <p style="color: #6b7280; margin: 5px 0;">Education Reimagined</p>
         </div>
@@ -182,7 +170,54 @@ export class EmailService {
         </div>
         
         <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; text-align: center; color: #6b7280; font-size: 14px;">
-          <p>If you have any questions, contact us at <a href="mailto:events@doutly.com" style="color: #3b82f6;">events@doutly.com</a></p>
+          <p>If you have any questions, contact us at <a href="mailto:${this.SUPPORT_EMAIL}" style="color: #3b82f6;">${this.SUPPORT_EMAIL}</a></p>
+          <p>Or call us at ${this.PHONE}</p>
+          <p style="margin: 10px 0 0 0;">© 2024 Doutly. All rights reserved.</p>
+        </div>
+      </div>
+    `;
+
+    return this.sendEmail({ to: email, subject, html });
+  }
+
+  static async sendTeamInviteEmail(email: string, name: string, role: string, tempPassword: string): Promise<boolean> {
+    const subject = `Welcome to Doutly Team - Your ${role} Account is Ready!`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="text-center; margin-bottom: 30px;">
+          <h1 style="color: #3b82f6; margin: 0;">Doutly</h1>
+          <p style="color: #6b7280; margin: 5px 0;">Education Reimagined</p>
+        </div>
+        
+        <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
+          <h2 style="color: white; margin: 0 0 10px 0;">Welcome to the Team, ${name}!</h2>
+          <p style="color: #e0e7ff; margin: 0; font-size: 18px;">
+            Your ${role} account has been created successfully.
+          </p>
+        </div>
+        
+        <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <h3 style="color: #374151; margin: 0 0 15px 0;">Your Login Credentials:</h3>
+          <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+            <p style="margin: 0 0 10px 0;"><strong>Email:</strong> ${email}</p>
+            <p style="margin: 0;"><strong>Temporary Password:</strong> <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">${tempPassword}</code></p>
+          </div>
+          <p style="color: #dc2626; font-size: 14px; margin: 10px 0 0 0;">
+            ⚠️ Please change your password after your first login for security.
+          </p>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="https://doutly.com/signin" 
+             style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+            Login to Dashboard
+          </a>
+        </div>
+        
+        <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; text-align: center; color: #6b7280; font-size: 14px;">
+          <p>If you have any questions, contact us at <a href="mailto:${this.SUPPORT_EMAIL}" style="color: #3b82f6;">${this.SUPPORT_EMAIL}</a></p>
+          <p>Or call us at ${this.PHONE}</p>
           <p style="margin: 10px 0 0 0;">© 2024 Doutly. All rights reserved.</p>
         </div>
       </div>
