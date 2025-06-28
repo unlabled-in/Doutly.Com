@@ -345,16 +345,8 @@ export class DatabaseService {
         listenerCache.get(cacheKey)!();
       }
 
-      // Create query with proper ordering
-      const queryConstraints = [...constraints];
-      
-      // Add default ordering if none specified
-      const hasOrderBy = constraints.some(c => c.type === 'orderBy');
-      if (!hasOrderBy) {
-        queryConstraints.push(orderBy('createdAt', 'desc'));
-      }
-
-      const q = query(collection(db, collectionName), ...queryConstraints);
+      // Use constraints as provided without adding default ordering
+      const q = query(collection(db, collectionName), ...constraints);
       
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const data = snapshot.docs.map(doc => ({
@@ -452,12 +444,7 @@ export class DatabaseService {
         queryConstraints.push(startAfter(lastDoc));
       }
 
-      // Add default ordering if none specified
-      const hasOrderBy = constraints.some(c => c.type === 'orderBy');
-      if (!hasOrderBy) {
-        queryConstraints.push(orderBy('createdAt', 'desc'));
-      }
-
+      // Don't add default ordering - let the caller specify if needed
       const q = query(collection(db, collectionName), ...queryConstraints);
       const querySnapshot = await getDocs(q);
       
