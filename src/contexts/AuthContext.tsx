@@ -145,7 +145,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await UserService.create(profile, user.uid);
       setUserProfile(profile);
 
-      // Navigate to appropriate dashboard
+      // Set redirect flag and navigate
+      redirectedRef.current = true;
       const dashboardPath = getDashboardPath(finalRole);
       setTimeout(() => {
         window.location.href = dashboardPath;

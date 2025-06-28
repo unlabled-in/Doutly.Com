@@ -47,10 +47,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
 const ConditionalFooter: React.FC = () => {
   const location = useLocation();
   
-  // Only show footer on landing page and public pages
-  const showFooterPages = ['/', '/services', '/events', '/careers', '/about', '/become-tutor', '/become-partner'];
-  
-  if (showFooterPages.includes(location.pathname)) {
+  // Only show footer on landing page
+  if (location.pathname === '/') {
     return <Footer />;
   }
   
