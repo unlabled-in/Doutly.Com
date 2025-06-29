@@ -17,10 +17,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 // Initialize services
-const analytics = getAnalytics(app);
+export const analytics = getAnalytics(app);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-const storage = getStorage(app);
+export const storage = getStorage(app);
 
 // Connection state management
 let isOnline = navigator.onLine;
@@ -57,5 +57,6 @@ export const retryConnection = async (): Promise<boolean> => {
 
 // Export connection utilities
 export const isFirebaseOnline = () => isOnline;
-const getConnectionRetryCount = () => connectionRetryCount;
+export const getConnectionRetryCount = () => connectionRetryCount;
 
+export default app;

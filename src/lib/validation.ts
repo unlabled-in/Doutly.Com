@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // User validation schemas
-const userProfileSchema = z.object({
+export const userProfileSchema = z.object({
   uid: z.string().min(1, 'User ID is required'),
   email: z.string().email('Invalid email format'),
   displayName: z.string().min(2, 'Display name must be at least 2 characters'),
@@ -18,7 +18,7 @@ const userProfileSchema = z.object({
 });
 
 // Lead validation schema
-const leadSchema = z.object({
+export const leadSchema = z.object({
   ticketNumber: z.string().min(1, 'Ticket number is required'),
   type: z.string().min(1, 'Type is required'),
   studentId: z.string().min(1, 'Student ID is required'),
@@ -50,7 +50,7 @@ const leadSchema = z.object({
 });
 
 // Application validation schema
-const applicationSchema = z.object({
+export const applicationSchema = z.object({
   type: z.enum(['tutor_application', 'partnership_application']),
   name: z.string().min(2, 'Name must be at least 2 characters').optional(),
   organizationName: z.string().min(2, 'Organization name must be at least 2 characters').optional(),
@@ -71,7 +71,7 @@ const applicationSchema = z.object({
 });
 
 // Event registration validation schema
-const eventRegistrationSchema = z.object({
+export const eventRegistrationSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email format'),
   phone: z.string().optional(),
@@ -85,7 +85,7 @@ const eventRegistrationSchema = z.object({
 });
 
 // Input sanitization functions
-const sanitizeInput = (input: string): string => {
+export const sanitizeInput = (input: string): string => {
   return input
     .trim()
     .replace(/[<>]/g, '') // Remove potential HTML tags
@@ -93,11 +93,11 @@ const sanitizeInput = (input: string): string => {
     .replace(/on\w+=/gi, ''); // Remove event handlers
 };
 
-const sanitizeEmail = (email: string): string => {
+export const sanitizeEmail = (email: string): string => {
   return email.toLowerCase().trim();
 };
 
-const sanitizePhone = (phone: string): string => {
+export const sanitizePhone = (phone: string): string => {
   return phone.replace(/[^\d+\-\s()]/g, '').trim();
 };
 
