@@ -286,8 +286,8 @@ const AdminDashboard: React.FC = () => {
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (user.displayName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
@@ -532,8 +532,8 @@ const AdminDashboard: React.FC = () => {
                           <tr key={user.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div>
-                                <div className="text-sm font-medium text-gray-900">{user.displayName}</div>
-                                <div className="text-sm text-gray-500">{user.email}</div>
+                                <div className="text-sm font-medium text-gray-900">{user.displayName || 'N/A'}</div>
+                                <div className="text-sm text-gray-500">{user.email || 'N/A'}</div>
                                 {user.phone && (
                                   <div className="text-sm text-gray-500">{user.phone}</div>
                                 )}
@@ -584,7 +584,7 @@ const AdminDashboard: React.FC = () => {
                                   onClick={() => setConfirmDialog({
                                     isOpen: true,
                                     title: 'Delete User',
-                                    message: `Are you sure you want to delete ${user.displayName}? This action cannot be undone.`,
+                                    message: `Are you sure you want to delete ${user.displayName || user.email}? This action cannot be undone.`,
                                     onConfirm: () => handleDeleteUser(user.id),
                                     type: 'danger'
                                   })}
@@ -853,11 +853,11 @@ const AdminDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-700">Name</label>
-                    <p className="text-gray-900">{selectedUser.displayName}</p>
+                    <p className="text-gray-900">{selectedUser.displayName || 'N/A'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-700">Email</label>
-                    <p className="text-gray-900">{selectedUser.email}</p>
+                    <p className="text-gray-900">{selectedUser.email || 'N/A'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-700">Role</label>
