@@ -225,4 +225,54 @@ export class EmailService {
 
     return this.sendEmail({ to: email, subject, html });
   }
+
+  static async sendEventRegistrationRejection(email: string, name: string, eventTitle: string, reason?: string): Promise<boolean> {
+    const subject = `Update on your registration for ${eventTitle}`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="text-center; margin-bottom: 30px;">
+          <h1 style="color: #3b82f6; margin: 0;">Doutly</h1>
+          <p style="color: #6b7280; margin: 5px 0;">Education Reimagined</p>
+        </div>
+        
+        <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <h2 style="color: #dc2626; margin: 0 0 15px 0;">Registration Update</h2>
+          <p style="color: #374151; margin: 0;">
+            Dear ${name},<br><br>
+            Thank you for your interest in ${eventTitle}. Unfortunately, we are unable to approve your registration at this time.
+          </p>
+        </div>
+        
+        ${reason ? `
+          <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #374151; margin: 0 0 10px 0;">Reason:</h3>
+            <p style="color: #6b7280; margin: 0;">${reason}</p>
+          </div>
+        ` : ''}
+        
+        <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <h3 style="color: #1d4ed8; margin: 0 0 15px 0;">Stay Connected!</h3>
+          <p style="color: #374151; margin: 0;">
+            Don't worry! We have many more exciting events coming up. Keep an eye on our events page for future opportunities.
+          </p>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="https://doutly.com/events" 
+             style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+            Browse Other Events
+          </a>
+        </div>
+        
+        <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; text-align: center; color: #6b7280; font-size: 14px;">
+          <p>If you have any questions, contact us at <a href="mailto:${this.SUPPORT_EMAIL}" style="color: #3b82f6;">${this.SUPPORT_EMAIL}</a></p>
+          <p>Or call us at ${this.PHONE}</p>
+          <p style="margin: 10px 0 0 0;">© 2024 Doutly. All rights reserved.</p>
+        </div>
+      </div>
+    `;
+
+    return this.sendEmail({ to: email, subject, html });
+  }
 }
