@@ -19,7 +19,8 @@ import {
   Award,
   Calendar,
   FileText,
-  BarChart3
+  BarChart3,
+  Send
 } from 'lucide-react';
 import { 
   collection, 
@@ -67,6 +68,8 @@ interface Application {
   experience?: string;
   bio?: string;
   message?: string;
+  reviewedBy?: string;
+  reviewNotes?: string;
 }
 
 interface EventRegistration {
@@ -77,6 +80,8 @@ interface EventRegistration {
   eventType: string;
   status: 'pending' | 'approved' | 'rejected';
   registrationDate: any;
+  approvedBy?: string;
+  rejectionReason?: string;
 }
 
 const AdminDashboard: React.FC = () => {
@@ -90,6 +95,7 @@ const AdminDashboard: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -260,7 +266,7 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleEventRegistrationAction = async (registrationId: string, action: 'approve' | 'reject') => {
+  const handleEventRegistrationAction = async (registrationId: string, action: 'approve' | 'reject', reason?: string) => {
     try {
       const registration = eventRegistrations.find(reg => reg.id === registrationId);
       if (!registration) return;
@@ -269,6 +275,7 @@ const AdminDashboard: React.FC = () => {
         status: action === 'approve' ? 'approved' : 'rejected',
         approvedBy: userProfile?.displayName,
         approvalDate: new Date(),
+        rejectionReason: reason,
         updatedAt: new Date()
       }, userProfile?.uid);
 
@@ -278,6 +285,13 @@ const AdminDashboard: React.FC = () => {
           registration.email,
           registration.name,
           registration.eventTitle
+        );
+      } else {
+        await EmailService.sendEventRegistrationRejection(
+          registration.email,
+          registration.name,
+          registration.eventTitle,
+          reason
         );
       }
     } catch (error) {
@@ -363,13 +377,29 @@ const AdminDashboard: React.FC = () => {
                 Manage users, applications, and system settings
               </p>
             </div>
-            <button
-              onClick={() => setShowCreateUser(true)}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center space-x-2"
-            >
-              <UserPlus className="h-5 w-5" />
-              <span>Create User</span>
-            </button>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setShowCreateUser(true)}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              >
+                <UserPlus className="h-5 w-5" />
+                <span>Create User</span>
+              </button>
+              <a
+                href="/creator"
+                className="bg-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center space-x-2"
+              >
+                <Plus className="h-5 w-5" />
+                <span>Creator Page</span>
+              </a>
+              <a
+                href="/hackathons"
+                className="bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center space-x-2"
+              >
+                <Calendar className="h-5 w-5" />
+                <span>Hackathons</span>
+              </a>
+            </div>
           </div>
         </div>
 
@@ -400,6 +430,7 @@ const AdminDashboard: React.FC = () => {
                 { id: 'users', label: 'User Profiles', icon: Users },
                 { id: 'applications', label: 'Applications', icon: FileText },
                 { id: 'events', label: 'Event Registrations', icon: Calendar },
+                { id: 'content', label: 'Content Management', icon: Edit },
                 { id: 'settings', label: 'Settings', icon: Settings }
               ].map((tab) => (
                 <button
@@ -695,7 +726,10 @@ const AdminDashboard: React.FC = () => {
                               Approve
                             </button>
                             <button
-                              onClick={() => handleEventRegistrationAction(registration.id, 'reject')}
+                              onClick={() => {
+                                const reason = prompt('Reason for rejection (optional):');
+                                handleEventRegistrationAction(registration.id, 'reject', reason || undefined);
+                              }}
                               className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
                             >
                               Reject
@@ -705,6 +739,47 @@ const AdminDashboard: React.FC = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'content' && (
+              <div className="space-y-6">
+                <h2 className="text-xl font-semibold text-gray-900">Content Management</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <Edit className="h-6 w-6 text-purple-600" />
+                      <h3 className="text-lg font-medium text-gray-900">Creator Page</h3>
+                    </div>
+                    <p className="text-gray-600 mb-4">
+                      Manage posts, articles, and educational content creation.
+                    </p>
+                    <a
+                      href="/creator"
+                      className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Manage Posts
+                    </a>
+                  </div>
+                  
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <Calendar className="h-6 w-6 text-green-600" />
+                      <h3 className="text-lg font-medium text-gray-900">Hackathons</h3>
+                    </div>
+                    <p className="text-gray-600 mb-4">
+                      Create and manage hackathons, competitions, and tech events.
+                    </p>
+                    <a
+                      href="/hackathons"
+                      className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Manage Hackathons
+                    </a>
+                  </div>
                 </div>
               </div>
             )}
