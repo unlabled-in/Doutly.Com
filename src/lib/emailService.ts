@@ -1,5 +1,5 @@
 // Enhanced Email service with updated contact information
-export interface EmailData {
+interface EmailData {
   to: string;
   subject: string;
   html: string;

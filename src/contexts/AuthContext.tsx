@@ -10,7 +10,7 @@ import {
 import { auth } from '../lib/firebase';
 import { DatabaseService, UserService, StandardizedUser } from '../lib/database';
 
-export interface UserProfile extends StandardizedUser {}
+interface UserProfile extends StandardizedUser {}
 
 interface AuthContextType {
   currentUser: User | null;

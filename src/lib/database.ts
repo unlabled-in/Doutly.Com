@@ -42,7 +42,7 @@ const offlineCache = new Map<string, any>();
 let isConnected = true;
 
 // Rate limiting function
-export const checkRateLimit = (userId: string, maxRequests: number = 10, windowMs: number = 60000): boolean => {
+const checkRateLimit = (userId: string, maxRequests: number = 10, windowMs: number = 60000): boolean => {
   const now = Date.now();
   const userLimit = rateLimitStore.get(userId);
   
@@ -76,7 +76,7 @@ const handleConnectionError = async (error: any, operation: string): Promise<voi
 };
 
 // Standardized data schemas
-export interface StandardizedLead {
+interface StandardizedLead {
   id?: string;
   ticketNumber: string;
   type: 'tutor_request' | 'tech_consultation';
@@ -116,7 +116,7 @@ export interface StandardizedLead {
   }>;
 }
 
-export interface StandardizedApplication {
+interface StandardizedApplication {
   id?: string;
   type: 'tutor_application' | 'partnership_application' | 'event_partnership';
   name?: string;
@@ -149,7 +149,7 @@ export interface StandardizedApplication {
   expectedAttendees?: string;
 }
 
-export interface StandardizedEventRegistration {
+interface StandardizedEventRegistration {
   id?: string;
   name: string;
   email: string;
@@ -698,7 +698,7 @@ export const UserService = {
 };
 
 // Connection status utility
-export const getConnectionStatus = () => ({
+const getConnectionStatus = () => ({
   isOnline: isFirebaseOnline(),
   isConnected,
   cacheSize: offlineCache.size
