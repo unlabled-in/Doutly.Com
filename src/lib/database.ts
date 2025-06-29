@@ -345,12 +345,14 @@ export class DatabaseService {
         listenerCache.get(cacheKey)!();
       }
 
-      // Create query with proper ordering
+      // Create query with constraints
       const queryConstraints = [...constraints];
       
-      // Add default ordering if none specified
+      // Only add default ordering if no where clauses exist to avoid composite index requirements
+      const hasWhereClause = constraints.some(c => c.type === 'where');
       const hasOrderBy = constraints.some(c => c.type === 'orderBy');
-      if (!hasOrderBy) {
+      
+      if (!hasOrderBy && !hasWhereClause) {
         queryConstraints.push(orderBy('createdAt', 'desc'));
       }
 
@@ -452,9 +454,11 @@ export class DatabaseService {
         queryConstraints.push(startAfter(lastDoc));
       }
 
-      // Add default ordering if none specified
+      // Only add default ordering if no where clauses exist to avoid composite index requirements
+      const hasWhereClause = constraints.some(c => c.type === 'where');
       const hasOrderBy = constraints.some(c => c.type === 'orderBy');
-      if (!hasOrderBy) {
+      
+      if (!hasOrderBy && !hasWhereClause) {
         queryConstraints.push(orderBy('createdAt', 'desc'));
       }
 
@@ -667,7 +671,7 @@ export const LeadService = {
     DatabaseService.getDocuments('leads', constraints, pageSize, lastDoc),
   subscribe: (constraints: QueryConstraint[], callback: (data: any[]) => void, cacheKey?: string) =>
     DatabaseService.subscribeToCollection('leads', constraints, callback, cacheKey),
-  // Simple queries to avoid index issues
+  // Simple queries without ordering to avoid index issues
   getByStudentId: (studentId: string, callback: (data: any[]) => void) =>
     DatabaseService.subscribeToCollection('leads', [where('studentId', '==', studentId)], callback, `leads_student_${studentId}`),
   getByAssignedTo: (assignedTo: string, callback: (data: any[]) => void) =>
@@ -694,7 +698,7 @@ export const EventRegistrationService = {
     DatabaseService.getDocuments('event_registrations', constraints, pageSize, lastDoc),
   subscribe: (constraints: QueryConstraint[], callback: (data: any[]) => void, cacheKey?: string) =>
     DatabaseService.subscribeToCollection('event_registrations', constraints, callback, cacheKey),
-  // Simple query to avoid index issues
+  // Simple query without ordering to avoid index issues
   getByEmail: (email: string, callback: (data: any[]) => void) =>
     DatabaseService.subscribeToCollection('event_registrations', [where('email', '==', email)], callback, `events_${email}`)
 };
