@@ -15,8 +15,6 @@ import TutorDashboard from './pages/tutor/TutorDashboard';
 import VerticalHeadDashboard from './pages/verticalhead/VerticalHeadDashboard';
 import TeamLeaderDashboard from './pages/teamleader/TeamLeaderDashboard';
 import FreelancerDashboard from './pages/freelancer/FreelancerDashboard';
-import BDADashboard from './pages/bda/BDADashboard';
-import SalesDashboard from './pages/sales/SalesDashboard';
 import ScheduleTutor from './pages/ScheduleTutor';
 import TechBox from './pages/TechBox';
 import Events from './pages/Events';
@@ -77,10 +75,6 @@ const AppRoutes: React.FC = () => {
         return '/tutor-dashboard';
       case 'freelancer':
         return '/freelancer-dashboard';
-      case 'bda':
-        return '/bda-dashboard';
-      case 'sales':
-        return '/sales-dashboard';
       default:
         return '/student-dashboard';
     }
@@ -162,22 +156,6 @@ const AppRoutes: React.FC = () => {
             element={
               <ProtectedRoute allowedRoles={['freelancer']}>
                 <FreelancerDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/bda-dashboard" 
-            element={
-              <ProtectedRoute allowedRoles={['bda']}>
-                <BDADashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/sales-dashboard" 
-            element={
-              <ProtectedRoute allowedRoles={['sales']}>
-                <SalesDashboard />
               </ProtectedRoute>
             } 
           />

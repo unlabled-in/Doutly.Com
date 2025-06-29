@@ -47,8 +47,6 @@ const getRoleFromEmail = (email: string): UserProfile['role'] => {
   if (prefix === 'teamlead' || prefix === 'teamleader' || prefix.includes('teamlead')) return 'team_leader';
   if (prefix === 'tutor' || prefix.includes('tutor')) return 'tutor';
   if (prefix === 'freelancer' || prefix.includes('freelancer')) return 'freelancer';
-  if (prefix === 'bda' || prefix.includes('bda')) return 'bda';
-  if (prefix === 'sales' || prefix.includes('sales')) return 'sales';
   
   // Check for role suffixes (name.role@doutly.com)
   const parts = prefix.split('.');
@@ -70,10 +68,6 @@ const getRoleFromEmail = (email: string): UserProfile['role'] => {
         return 'tutor';
       case 'freelancer':
         return 'freelancer';
-      case 'bda':
-        return 'bda';
-      case 'sales':
-        return 'sales';
       default:
         return 'student';
     }
@@ -97,10 +91,6 @@ const getDashboardPath = (role: string): string => {
       return '/tutor-dashboard';
     case 'freelancer':
       return '/freelancer-dashboard';
-    case 'bda':
-      return '/bda-dashboard';
-    case 'sales':
-      return '/sales-dashboard';
     default:
       return '/student-dashboard';
   }
@@ -112,6 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const redirectedRef = useRef(false);
   const isInitialLoad = useRef(true);
+  const lastRedirectPath = useRef<string>('');
 
   const signUp = async (email: string, password: string, profileData: Partial<UserProfile>) => {
     try {
@@ -148,6 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Set redirect flag and navigate
       redirectedRef.current = true;
       const dashboardPath = getDashboardPath(finalRole);
+      lastRedirectPath.current = dashboardPath;
       setTimeout(() => {
         window.location.href = dashboardPath;
       }, 100);
@@ -182,6 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await firebaseSignOut(auth);
       setUserProfile(null);
       redirectedRef.current = false;
+      lastRedirectPath.current = '';
       window.location.href = '/';
     } catch (error) {
       console.error('Error in signOut:', error);
@@ -248,13 +241,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setUserProfile(userDoc);
             }
 
-            // Auto-redirect to dashboard if user is authenticated and on auth pages
+            // Auto-redirect to dashboard only if:
+            // 1. User is on auth pages (signin/signup)
+            // 2. Not initial load
+            // 3. Haven't redirected recently to avoid loops
+            // 4. Not redirecting to the same path
             const currentPath = window.location.pathname;
-            if ((currentPath === '/signin' || currentPath === '/signup') && !redirectedRef.current && !isInitialLoad.current) {
+            const dashboardPath = getDashboardPath(userDoc.role);
+            
+            if ((currentPath === '/signin' || currentPath === '/signup') && 
+                !isInitialLoad.current && 
+                !redirectedRef.current && 
+                lastRedirectPath.current !== dashboardPath) {
+              
               redirectedRef.current = true;
-              const dashboardPath = getDashboardPath(userDoc.role);
+              lastRedirectPath.current = dashboardPath;
+              
               setTimeout(() => {
                 window.location.href = dashboardPath;
+                // Reset redirect flag after navigation
+                setTimeout(() => {
+                  redirectedRef.current = false;
+                }, 2000);
               }, 100);
             }
           } else {
@@ -275,12 +283,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               await UserService.create(profile, user.uid);
               setUserProfile(profile);
 
-              // Redirect to appropriate dashboard
-              if (!redirectedRef.current && !isInitialLoad.current) {
+              // Redirect to appropriate dashboard for new users
+              if (!isInitialLoad.current && !redirectedRef.current) {
                 redirectedRef.current = true;
                 const dashboardPath = getDashboardPath(profile.role);
+                lastRedirectPath.current = dashboardPath;
                 setTimeout(() => {
                   window.location.href = dashboardPath;
+                  setTimeout(() => {
+                    redirectedRef.current = false;
+                  }, 2000);
                 }, 100);
               }
             } catch (createError) {
@@ -295,6 +307,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setUserProfile(null);
         redirectedRef.current = false;
+        lastRedirectPath.current = '';
       }
       
       setLoading(false);
