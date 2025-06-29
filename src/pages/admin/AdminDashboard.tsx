@@ -20,7 +20,8 @@ import {
   Calendar,
   FileText,
   BarChart3,
-  Send
+  Send,
+  X
 } from 'lucide-react';
 import { 
   collection, 
@@ -118,14 +119,37 @@ const AdminDashboard: React.FC = () => {
   });
 
   useEffect(() => {
-    // Subscribe to users
+    // Subscribe to users with deduplication
     const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
     const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
       const usersData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as User[];
-      setUsers(usersData);
+      
+      // Remove duplicates based on email and uid
+      const uniqueUsers = usersData.reduce((acc: User[], current) => {
+        const existingUser = acc.find(user => 
+          user.email === current.email || user.uid === current.uid
+        );
+        
+        if (!existingUser) {
+          acc.push(current);
+        } else {
+          // Keep the most recent one (with more complete data)
+          const currentIndex = acc.indexOf(existingUser);
+          if (current.displayName && !existingUser.displayName) {
+            acc[currentIndex] = current;
+          } else if (current.lastLoginAt && (!existingUser.lastLoginAt || 
+            new Date(current.lastLoginAt.toDate?.() || current.lastLoginAt) > 
+            new Date(existingUser.lastLoginAt.toDate?.() || existingUser.lastLoginAt))) {
+            acc[currentIndex] = current;
+          }
+        }
+        return acc;
+      }, []);
+      
+      setUsers(uniqueUsers);
       setLoading(false);
     });
 
@@ -300,8 +324,10 @@ const AdminDashboard: React.FC = () => {
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = (user.displayName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const displayName = user.displayName || '';
+    const email = user.email || '';
+    const matchesSearch = displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
@@ -560,7 +586,7 @@ const AdminDashboard: React.FC = () => {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {filteredUsers.map((user) => (
-                          <tr key={user.id} className="hover:bg-gray-50">
+                          <tr key={`${user.uid}-${user.id}`} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div>
                                 <div className="text-sm font-medium text-gray-900">{user.displayName || 'N/A'}</div>
@@ -826,7 +852,7 @@ const AdminDashboard: React.FC = () => {
                     onClick={() => setShowCreateUser(false)}
                     className="text-gray-400 hover:text-gray-600"
                   >
-                    ×
+                    <X className="h-6 w-6" />
                   </button>
                 </div>
               </div>
@@ -920,7 +946,7 @@ const AdminDashboard: React.FC = () => {
                     onClick={() => setSelectedUser(null)}
                     className="text-gray-400 hover:text-gray-600"
                   >
-                    ×
+                    <X className="h-6 w-6" />
                   </button>
                 </div>
               </div>
