@@ -75,9 +75,6 @@ const Footer: React.FC = () => {
           <div className="space-y-6">
             <h3 className="text-xl font-semibold text-white">Resources</h3>
             <div className="space-y-3">
-              <Link to="/about" className="block text-gray-300 hover:text-blue-400 transition-colors duration-300 hover:translate-x-1 transform">
-                About Us
-              </Link>
               <Link to="/careers" className="block text-gray-300 hover:text-blue-400 transition-colors duration-300 hover:translate-x-1 transform">
                 Careers
               </Link>

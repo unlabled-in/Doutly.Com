@@ -5,13 +5,13 @@ import { getFirestore, connectFirestoreEmulator, enableNetwork, disableNetwork }
 import { getStorage, connectStorageEmulator } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBVPDZjcSqp1u89KcO6KUQG4R_upFOQCqU",
-  authDomain: "doutly-1c54c.firebaseapp.com",
-  projectId: "doutly-1c54c",
-  storageBucket: "doutly-1c54c.firebasestorage.app",
-  messagingSenderId: "127862661423",
-  appId: "1:127862661423:web:19c242ce91da39888e41da",
-  measurementId: "G-XRWYF9YX2M"
+  apiKey: "AIzaSyByjeW4BVRgsbYma3lAlun5RpcRpZ-tp3Y",
+  authDomain: "doutly-71190.firebaseapp.com",
+  projectId: "doutly-71190",
+  storageBucket: "doutly-71190.firebasestorage.app",
+  messagingSenderId: "710419702210",
+  appId: "1:710419702210:web:54a626d4cc8507169b365b",
+  measurementId: "G-Q0DW01YP61"
 };
 
 const app = initializeApp(firebaseConfig);

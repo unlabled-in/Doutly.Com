@@ -19,7 +19,6 @@ import ScheduleTutor from './pages/ScheduleTutor';
 import TechBox from './pages/TechBox';
 import Events from './pages/Events';
 import Careers from './pages/Careers';
-import About from './pages/About';
 import BecomeTutor from './pages/BecomeTutor';
 import BecomePartner from './pages/BecomePartner';
 import RegistrationManagement from './pages/admin/RegistrationManagement';
@@ -90,7 +89,6 @@ const AppRoutes: React.FC = () => {
           <Route path="/services" element={<Services />} />
           <Route path="/events" element={<Events />} />
           <Route path="/careers" element={<Careers />} />
-          <Route path="/about" element={<About />} />
           <Route path="/become-tutor" element={<BecomeTutor />} />
           <Route path="/become-partner" element={<BecomePartner />} />
           <Route 

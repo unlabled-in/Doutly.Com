@@ -70,10 +70,6 @@ const Navbar: React.FC = () => {
               Careers
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
             </Link>
-            <Link to="/about" className="text-gray-700 hover:text-blue-600 font-medium transition-colors relative group">
-              About
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 group-hover:w-full"></span>
-            </Link>
 
             {currentUser ? (
               <div className="flex items-center space-x-4">
@@ -150,9 +146,6 @@ const Navbar: React.FC = () => {
               </Link>
               <Link to="/careers" className="text-gray-700 hover:text-blue-600 font-medium transition-colors py-2">
                 Careers
-              </Link>
-              <Link to="/about" className="text-gray-700 hover:text-blue-600 font-medium transition-colors py-2">
-                About
               </Link>
               
               {currentUser ? (
