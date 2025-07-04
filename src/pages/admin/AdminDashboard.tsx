@@ -21,7 +21,11 @@ import {
   FileText,
   BarChart3,
   Send,
-  X
+  X,
+  Target,
+  MessageCircle,
+  ArrowRight,
+  User
 } from 'lucide-react';
 import { 
   collection, 
@@ -37,7 +41,7 @@ import {
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth, db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { UserService, ApplicationService, EventRegistrationService } from '../../lib/database';
+import { UserService, ApplicationService, EventRegistrationService, LeadService, StandardizedLead } from '../../lib/database';
 import { EmailService } from '../../lib/emailService';
 import BackButton from '../../components/BackButton';
 import ConfirmDialog from '../../components/ConfirmDialog';
@@ -91,12 +95,16 @@ const AdminDashboard: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [eventRegistrations, setEventRegistrations] = useState<EventRegistration[]>([]);
+  const [leads, setLeads] = useState<StandardizedLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [leadStatusFilter, setLeadStatusFilter] = useState('all');
+  const [leadSearchTerm, setLeadSearchTerm] = useState('');
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [selectedLead, setSelectedLead] = useState<StandardizedLead | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -173,10 +181,16 @@ const AdminDashboard: React.FC = () => {
       setEventRegistrations(eventsData);
     });
 
+    // Subscribe to leads
+    const unsubscribeLeads = LeadService.subscribe([], (leadsData) => {
+      setLeads(leadsData);
+    });
+
     return () => {
       unsubscribeUsers();
       unsubscribeApplications();
       unsubscribeEvents();
+      unsubscribeLeads();
     };
   }, []);
 
@@ -323,6 +337,49 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleAssignLead = async (leadId: string, assignToEmail: string) => {
+    try {
+      const assignToUser = users.find(user => user.email === assignToEmail);
+      await LeadService.update(leadId, {
+        assignedTo: assignToEmail,
+        assignedBy: userProfile?.displayName,
+        status: 'assigned',
+        updatedAt: new Date(),
+        history: [
+          ...(leads.find(l => l.id === leadId)?.history || []),
+          {
+            action: 'assigned',
+            timestamp: new Date(),
+            by: userProfile?.displayName || 'Admin',
+            note: `Assigned to ${assignToUser?.displayName || assignToEmail}`
+          }
+        ]
+      }, userProfile?.uid);
+    } catch (error) {
+      console.error('Error assigning lead:', error);
+    }
+  };
+
+  const handleUpdateLeadStatus = async (leadId: string, newStatus: string) => {
+    try {
+      await LeadService.update(leadId, {
+        status: newStatus,
+        updatedAt: new Date(),
+        history: [
+          ...(leads.find(l => l.id === leadId)?.history || []),
+          {
+            action: 'status_updated',
+            timestamp: new Date(),
+            by: userProfile?.displayName || 'Admin',
+            note: `Status changed to ${newStatus}`
+          }
+        ]
+      }, userProfile?.uid);
+    } catch (error) {
+      console.error('Error updating lead status:', error);
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     const displayName = user.displayName || '';
     const email = user.email || '';
@@ -332,6 +389,20 @@ const AdminDashboard: React.FC = () => {
     return matchesSearch && matchesRole;
   });
 
+  const filteredLeads = leads.filter(lead => {
+    const matchesSearch = lead.ticketNumber.toLowerCase().includes(leadSearchTerm.toLowerCase()) ||
+                         lead.studentName.toLowerCase().includes(leadSearchTerm.toLowerCase()) ||
+                         lead.subject.toLowerCase().includes(leadSearchTerm.toLowerCase()) ||
+                         lead.studentEmail.toLowerCase().includes(leadSearchTerm.toLowerCase());
+    const matchesStatus = leadStatusFilter === 'all' || lead.status === leadStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Get assignable users (tutors, team leaders, managers)
+  const assignableUsers = users.filter(user => 
+    ['tutor', 'team_leader', 'manager', 'vertical_head'].includes(user.role)
+  );
+
   const stats = [
     {
       label: 'Total Users',
@@ -340,6 +411,14 @@ const AdminDashboard: React.FC = () => {
       color: 'text-blue-600',
       bg: 'bg-blue-100',
       change: '+12%'
+    },
+    {
+      label: 'Total Leads',
+      value: leads.length,
+      icon: Target,
+      color: 'text-green-600',
+      bg: 'bg-green-100',
+      change: '+18%'
     },
     {
       label: 'Pending Applications',
@@ -353,17 +432,9 @@ const AdminDashboard: React.FC = () => {
       label: 'Active Tutors',
       value: users.filter(user => user.role === 'tutor' && user.isActive).length,
       icon: Award,
-      color: 'text-green-600',
-      bg: 'bg-green-100',
-      change: '+8%'
-    },
-    {
-      label: 'Event Registrations',
-      value: eventRegistrations.length,
-      icon: Calendar,
       color: 'text-purple-600',
       bg: 'bg-purple-100',
-      change: '+15%'
+      change: '+8%'
     }
   ];
 
@@ -372,6 +443,20 @@ const AdminDashboard: React.FC = () => {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'approved': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
+      case 'open': return 'bg-red-100 text-red-800';
+      case 'assigned': return 'bg-blue-100 text-blue-800';
+      case 'in_progress': return 'bg-purple-100 text-purple-800';
+      case 'resolved': return 'bg-green-100 text-green-800';
+      case 'closed': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'bg-red-100 text-red-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -400,7 +485,7 @@ const AdminDashboard: React.FC = () => {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
               <p className="text-gray-600 mt-2">
-                Manage users, applications, and system settings
+                Manage users, applications, leads, and system settings
               </p>
             </div>
             <div className="flex items-center space-x-4">
@@ -453,6 +538,7 @@ const AdminDashboard: React.FC = () => {
             <nav className="flex space-x-8 px-6">
               {[
                 { id: 'overview', label: 'Overview', icon: BarChart3 },
+                { id: 'leads', label: 'Leads Management', icon: Target },
                 { id: 'users', label: 'User Profiles', icon: Users },
                 { id: 'applications', label: 'Applications', icon: FileText },
                 { id: 'events', label: 'Event Registrations', icon: Calendar },
@@ -502,14 +588,14 @@ const AdminDashboard: React.FC = () => {
                   </div>
                   
                   <div className="bg-gray-50 rounded-lg p-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">User Distribution</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Lead Statistics</h3>
                     <div className="space-y-3">
-                      {['student', 'tutor', 'freelancer', 'manager', 'team_leader'].map((role) => {
-                        const count = users.filter(user => user.role === role).length;
-                        const percentage = users.length > 0 ? (count / users.length) * 100 : 0;
+                      {['open', 'assigned', 'in_progress', 'resolved'].map((status) => {
+                        const count = leads.filter(lead => lead.status === status).length;
+                        const percentage = leads.length > 0 ? (count / leads.length) * 100 : 0;
                         return (
-                          <div key={role} className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600 capitalize">{role.replace('_', ' ')}</span>
+                          <div key={status} className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600 capitalize">{status.replace('_', ' ')}</span>
                             <div className="flex items-center space-x-2">
                               <div className="w-20 bg-gray-200 rounded-full h-2">
                                 <div 
@@ -523,6 +609,160 @@ const AdminDashboard: React.FC = () => {
                         );
                       })}
                     </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'leads' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-gray-900">Leads Management</h2>
+                  <div className="flex items-center space-x-4">
+                    <div className="relative">
+                      <Search className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Search leads..."
+                        value={leadSearchTerm}
+                        onChange={(e) => setLeadSearchTerm(e.target.value)}
+                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <select
+                      value={leadStatusFilter}
+                      onChange={(e) => setLeadStatusFilter(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="open">Open</option>
+                      <option value="assigned">Assigned</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="resolved">Resolved</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ticket
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Student
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Subject
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Assigned To
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Created
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredLeads.map((lead) => (
+                          <tr key={lead.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                  <MessageCircle className="h-5 w-5 text-blue-500" />
+                                </div>
+                                <div className="ml-3">
+                                  <div className="text-sm font-medium text-gray-900 font-mono">
+                                    {lead.ticketNumber}
+                                  </div>
+                                  <div className="text-sm text-gray-500">{lead.type.replace('_', ' ')}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{lead.studentName}</div>
+                                <div className="text-sm text-gray-500">{lead.studentEmail}</div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{lead.subject}</div>
+                              <div className="text-sm text-gray-500 max-w-xs truncate">
+                                {lead.doubtDescription}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(lead.status)}`}>
+                                {lead.status.replace('_', ' ')}
+                              </span>
+                              <div className="mt-1">
+                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(lead.priority)}`}>
+                                  {lead.priority}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {lead.assignedTo ? (
+                                <div>
+                                  <div className="font-medium">{users.find(u => u.email === lead.assignedTo)?.displayName || lead.assignedTo}</div>
+                                  <div className="text-gray-500">by {lead.assignedBy}</div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">Unassigned</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {new Date(lead.createdAt?.toDate?.() || lead.createdAt).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => setSelectedLead(lead)}
+                                  className="text-blue-600 hover:text-blue-900"
+                                  title="View Details"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                                {!lead.assignedTo && (
+                                  <select
+                                    onChange={(e) => e.target.value && handleAssignLead(lead.id!, e.target.value)}
+                                    className="text-xs border border-gray-300 rounded px-2 py-1"
+                                    defaultValue=""
+                                  >
+                                    <option value="" disabled>Assign to...</option>
+                                    {assignableUsers.map((user) => (
+                                      <option key={user.email} value={user.email}>
+                                        {user.displayName} ({user.role})
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                                <select
+                                  value={lead.status}
+                                  onChange={(e) => handleUpdateLeadStatus(lead.id!, e.target.value)}
+                                  className="text-xs border border-gray-300 rounded px-2 py-1"
+                                >
+                                  <option value="open">Open</option>
+                                  <option value="assigned">Assigned</option>
+                                  <option value="in_progress">In Progress</option>
+                                  <option value="resolved">Resolved</option>
+                                  <option value="closed">Closed</option>
+                                </select>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
@@ -931,6 +1171,167 @@ const AdminDashboard: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Lead Detail Modal */}
+        {selectedLead && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Lead Details</h3>
+                  <button
+                    onClick={() => setSelectedLead(null)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Ticket Number</label>
+                    <p className="font-mono text-blue-600 text-lg">{selectedLead.ticketNumber}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Type</label>
+                    <p className="text-gray-900">{selectedLead.type.replace('_', ' ')}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Student Name</label>
+                    <p className="text-gray-900">{selectedLead.studentName}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Student Email</label>
+                    <p className="text-gray-900">{selectedLead.studentEmail}</p>
+                  </div>
+                  {selectedLead.studentPhone && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Student Phone</label>
+                      <p className="text-gray-900">{selectedLead.studentPhone}</p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Subject</label>
+                    <p className="text-gray-900">{selectedLead.subject}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Description</label>
+                  <p className="text-gray-900 bg-gray-50 p-4 rounded-lg">{selectedLead.doubtDescription}</p>
+                </div>
+
+                {selectedLead.type === 'tech_consultation' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {selectedLead.projectTitle && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Project Title</label>
+                        <p className="text-gray-900">{selectedLead.projectTitle}</p>
+                      </div>
+                    )}
+                    {selectedLead.techStack && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Tech Stack</label>
+                        <p className="text-gray-900">{selectedLead.techStack}</p>
+                      </div>
+                    )}
+                    {selectedLead.projectType && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Project Type</label>
+                        <p className="text-gray-900">{selectedLead.projectType.replace('_', ' ')}</p>
+                      </div>
+                    )}
+                    {selectedLead.timeline && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Timeline</label>
+                        <p className="text-gray-900">{selectedLead.timeline}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Status</label>
+                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedLead.status)}`}>
+                      {selectedLead.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Priority</label>
+                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getPriorityColor(selectedLead.priority)}`}>
+                      {selectedLead.priority}
+                    </span>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Urgency Level</label>
+                    <p className="text-gray-900 capitalize">{selectedLead.urgencyLevel}</p>
+                  </div>
+                </div>
+
+                {selectedLead.assignedTo && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Assigned To</label>
+                      <p className="text-gray-900">{users.find(u => u.email === selectedLead.assignedTo)?.displayName || selectedLead.assignedTo}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Assigned By</label>
+                      <p className="text-gray-900">{selectedLead.assignedBy}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Created At</label>
+                    <p className="text-gray-900">
+                      {new Date(selectedLead.createdAt?.toDate?.() || selectedLead.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Updated At</label>
+                    <p className="text-gray-900">
+                      {new Date(selectedLead.updatedAt?.toDate?.() || selectedLead.updatedAt).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                {selectedLead.notes && selectedLead.notes.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Notes</label>
+                    <div className="space-y-2">
+                      {selectedLead.notes.map((note, index) => (
+                        <p key={index} className="text-gray-900 bg-gray-50 p-3 rounded-lg">{note}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedLead.history && selectedLead.history.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">History</label>
+                    <div className="space-y-3">
+                      {selectedLead.history.map((entry, index) => (
+                        <div key={index} className="bg-gray-50 p-3 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-gray-900 capitalize">{entry.action.replace('_', ' ')}</span>
+                            <span className="text-sm text-gray-500">
+                              {new Date(entry.timestamp?.toDate?.() || entry.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600">By: {entry.by}</p>
+                          {entry.note && <p className="text-sm text-gray-700 mt-1">{entry.note}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
