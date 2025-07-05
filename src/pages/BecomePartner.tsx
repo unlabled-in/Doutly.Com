@@ -14,11 +14,14 @@ import {
   Target,
   IndianRupee
 } from 'lucide-react';
-import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { ApplicationService } from '../lib/database';
+import { EmailService } from '../lib/emailService';
+import { NotificationService } from '../lib/notificationService';
+import { useAuth } from '../contexts/AuthContext';
 import BackButton from '../components/BackButton';
 
 const BecomePartner: React.FC = () => {
+  const { userProfile } = useAuth();
   const [formData, setFormData] = useState({
     organizationName: '',
     contactName: '',
@@ -144,7 +147,25 @@ const BecomePartner: React.FC = () => {
                  formData.budget.includes('₹5,00,000') ? 'medium' : 'low'
       };
 
-      await addDoc(collection(db, 'applications'), partnershipData);
+      await ApplicationService.create(partnershipData, userProfile?.uid);
+      
+      // Send confirmation email
+      await EmailService.sendPartnershipApplicationConfirmation(
+        formData.email,
+        formData.contactName,
+        formData.organizationName
+      );
+
+      // Create notification for user
+      if (userProfile?.uid) {
+        await NotificationService.create({
+          userId: userProfile.uid,
+          title: 'Partnership Application Submitted',
+          message: `Your partnership application for ${formData.organizationName} has been submitted successfully.`,
+          type: 'success',
+          actionUrl: '/become-partner'
+        });
+      }
       
       setSuccess(true);
       setFormData({

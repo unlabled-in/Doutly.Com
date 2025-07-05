@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://doutly.com/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 1
+
+# Disallow admin pages
+Disallow: /admin-dashboard
+Disallow: /manager-dashboard
+Disallow: /vh-dashboard
+Disallow: /tl-dashboard
+Disallow: /tutor-dashboard
+Disallow: /freelancer-dashboard

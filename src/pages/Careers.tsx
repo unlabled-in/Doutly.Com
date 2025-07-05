@@ -18,6 +18,8 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { JobApplicationService } from '../lib/database';
+import { EmailService } from '../lib/emailService';
+import { NotificationService } from '../lib/notificationService';
 import { useAuth } from '../contexts/AuthContext';
 
 const Careers: React.FC = () => {
@@ -184,6 +186,24 @@ const Careers: React.FC = () => {
       };
 
       await JobApplicationService.create(jobApplicationData, userProfile?.uid);
+      
+      // Send confirmation email
+      await EmailService.sendJobApplicationConfirmation(
+        applicationData.applicantEmail,
+        applicationData.applicantName,
+        selectedJob.title
+      );
+
+      // Create notification for user
+      if (userProfile?.uid) {
+        await NotificationService.create({
+          userId: userProfile.uid,
+          title: 'Application Submitted',
+          message: `Your application for ${selectedJob.title} has been submitted successfully.`,
+          type: 'success',
+          actionUrl: '/careers'
+        });
+      }
       
       setSuccess(true);
       setShowApplicationModal(false);

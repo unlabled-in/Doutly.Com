@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, GraduationCap, LogIn, UserPlus, Bell, Search } from 'lucide-react';
+import { Menu, X, GraduationCap, LogIn, UserPlus, Search } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import NotificationDropdown from './NotificationDropdown';
 
 const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -73,10 +74,7 @@ const Navbar: React.FC = () => {
 
             {currentUser ? (
               <div className="flex items-center space-x-4">
-                <button className="p-2 text-gray-400 hover:text-blue-600 transition-colors relative">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
-                </button>
+                <NotificationDropdown />
                 <Link 
                   to={getDashboardPath()}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-xl font-medium hover:shadow-lg transition-all duration-300 transform hover:scale-105"
