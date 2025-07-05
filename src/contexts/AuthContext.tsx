@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   User, 
   createUserWithEmailAndPassword, 
@@ -76,33 +76,10 @@ const getRoleFromEmail = (email: string): UserProfile['role'] => {
   return 'student';
 };
 
-// Get dashboard path based on role
-const getDashboardPath = (role: string): string => {
-  switch (role) {
-    case 'admin':
-      return '/admin-dashboard';
-    case 'vertical_head':
-      return '/vh-dashboard';
-    case 'manager':
-      return '/manager-dashboard';
-    case 'team_leader':
-      return '/tl-dashboard';
-    case 'tutor':
-      return '/tutor-dashboard';
-    case 'freelancer':
-      return '/freelancer-dashboard';
-    default:
-      return '/student-dashboard';
-  }
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const redirectedRef = useRef(false);
-  const isInitialLoad = useRef(true);
-  const lastRedirectPath = useRef<string>('');
 
   const signUp = async (email: string, password: string, profileData: Partial<UserProfile>) => {
     try {
@@ -135,14 +112,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       await UserService.create(profile, user.uid);
       setUserProfile(profile);
-
-      // Set redirect flag and navigate
-      redirectedRef.current = true;
-      const dashboardPath = getDashboardPath(finalRole);
-      lastRedirectPath.current = dashboardPath;
-      setTimeout(() => {
-        window.location.href = dashboardPath;
-      }, 100);
     } catch (error) {
       console.error('Error in signUp:', error);
       throw error;
@@ -173,9 +142,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await firebaseSignOut(auth);
       setUserProfile(null);
-      redirectedRef.current = false;
-      lastRedirectPath.current = '';
-      window.location.href = '/';
     } catch (error) {
       console.error('Error in signOut:', error);
       throw error;
@@ -240,31 +206,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } else {
               setUserProfile(userDoc);
             }
-
-            // Auto-redirect to dashboard only if:
-            // 1. User is on auth pages (signin/signup)
-            // 2. Not initial load
-            // 3. Haven't redirected recently to avoid loops
-            // 4. Not redirecting to the same path
-            const currentPath = window.location.pathname;
-            const dashboardPath = getDashboardPath(userDoc.role);
-            
-            if ((currentPath === '/signin' || currentPath === '/signup') && 
-                !isInitialLoad.current && 
-                !redirectedRef.current && 
-                lastRedirectPath.current !== dashboardPath) {
-              
-              redirectedRef.current = true;
-              lastRedirectPath.current = dashboardPath;
-              
-              setTimeout(() => {
-                window.location.href = dashboardPath;
-                // Reset redirect flag after navigation
-                setTimeout(() => {
-                  redirectedRef.current = false;
-                }, 2000);
-              }, 100);
-            }
           } else {
             // Create user profile if it doesn't exist
             const profile: UserProfile = DatabaseService.standardizeUser({
@@ -282,19 +223,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
               await UserService.create(profile, user.uid);
               setUserProfile(profile);
-
-              // Redirect to appropriate dashboard for new users
-              if (!isInitialLoad.current && !redirectedRef.current) {
-                redirectedRef.current = true;
-                const dashboardPath = getDashboardPath(profile.role);
-                lastRedirectPath.current = dashboardPath;
-                setTimeout(() => {
-                  window.location.href = dashboardPath;
-                  setTimeout(() => {
-                    redirectedRef.current = false;
-                  }, 2000);
-                }, 100);
-              }
             } catch (createError) {
               console.error('Failed to create user profile:', createError);
               setUserProfile(null);
@@ -306,12 +234,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else {
         setUserProfile(null);
-        redirectedRef.current = false;
-        lastRedirectPath.current = '';
       }
       
       setLoading(false);
-      isInitialLoad.current = false;
     });
 
     return unsubscribe;
