@@ -26,7 +26,8 @@ import {
   validateAndSanitizeLead, 
   validateAndSanitizeApplication, 
   validateAndSanitizeEventRegistration,
-  validateAndSanitizeUser
+  validateAndSanitizeUser,
+  validateAndSanitizeJobApplication
 } from './validation';
 
 // Rate limiting store
@@ -196,6 +197,25 @@ export interface StandardizedUser {
   experience?: string;
 }
 
+export interface StandardizedJobApplication {
+  id?: string;
+  jobTitle: string;
+  jobId: string;
+  applicantName: string;
+  applicantEmail: string;
+  applicantPhone?: string;
+  coverLetter: string;
+  resumeLink?: string;
+  experience?: string;
+  skills?: string[];
+  status: 'pending' | 'reviewed' | 'shortlisted' | 'rejected' | 'hired';
+  submittedAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
+  reviewedBy?: string;
+  reviewNotes?: string;
+  priority: 'low' | 'medium' | 'high';
+}
+
 // Generic database operations with enhanced error handling and offline support
 export class DatabaseService {
   // Create document with validation and audit trail
@@ -221,6 +241,9 @@ export class DatabaseService {
           break;
         case 'users':
           validatedData = this.standardizeUser(data);
+          break;
+        case 'job_applications':
+          validatedData = this.standardizeJobApplication(data);
           break;
         default:
           validatedData = data;
@@ -618,6 +641,26 @@ export class DatabaseService {
     };
   }
 
+  static standardizeJobApplication(data: any): StandardizedJobApplication {
+    return {
+      jobTitle: data.jobTitle || '',
+      jobId: data.jobId || '',
+      applicantName: data.applicantName || '',
+      applicantEmail: data.applicantEmail || '',
+      applicantPhone: data.applicantPhone || null,
+      coverLetter: data.coverLetter || '',
+      resumeLink: data.resumeLink || null,
+      experience: data.experience || null,
+      skills: data.skills || [],
+      status: data.status || 'pending',
+      submittedAt: data.submittedAt || new Date(),
+      updatedAt: data.updatedAt || new Date(),
+      reviewedBy: data.reviewedBy || null,
+      reviewNotes: data.reviewNotes || null,
+      priority: data.priority || 'medium'
+    };
+  }
+
   // Audit logging
   static async createAuditLog(logData: {
     action: string;
@@ -712,6 +755,17 @@ export const UserService = {
     DatabaseService.getDocuments('users', constraints, pageSize, lastDoc),
   subscribe: (constraints: QueryConstraint[], callback: (data: any[]) => void, cacheKey?: string) =>
     DatabaseService.subscribeToCollection('users', constraints, callback, cacheKey)
+};
+
+export const JobApplicationService = {
+  create: (data: any, userId?: string) => DatabaseService.createDocument('job_applications', data, userId),
+  update: (id: string, data: any, userId?: string) => DatabaseService.updateDocument('job_applications', id, data, userId),
+  delete: (id: string, userId?: string) => DatabaseService.deleteDocument('job_applications', id, userId),
+  get: (id: string) => DatabaseService.getDocument('job_applications', id),
+  getAll: (constraints?: QueryConstraint[], pageSize?: number, lastDoc?: DocumentSnapshot) => 
+    DatabaseService.getDocuments('job_applications', constraints, pageSize, lastDoc),
+  subscribe: (constraints: QueryConstraint[], callback: (data: any[]) => void, cacheKey?: string) =>
+    DatabaseService.subscribeToCollection('job_applications', constraints, callback, cacheKey)
 };
 
 // Connection status utility

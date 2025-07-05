@@ -84,6 +84,22 @@ export const eventRegistrationSchema = z.object({
   additionalInfo: z.string().optional()
 });
 
+// Job application validation schema
+export const jobApplicationSchema = z.object({
+  jobTitle: z.string().min(1, 'Job title is required'),
+  jobId: z.string().min(1, 'Job ID is required'),
+  applicantName: z.string().min(2, 'Name must be at least 2 characters'),
+  applicantEmail: z.string().email('Invalid email format'),
+  applicantPhone: z.string().optional(),
+  coverLetter: z.string().min(50, 'Cover letter must be at least 50 characters'),
+  resumeLink: z.string().url('Invalid URL format').optional(),
+  experience: z.string().optional(),
+  skills: z.array(z.string()).optional(),
+  status: z.enum(['pending', 'reviewed', 'shortlisted', 'rejected', 'hired']).default('pending'),
+  submittedAt: z.date(),
+  priority: z.enum(['low', 'medium', 'high']).default('medium')
+});
+
 // Input sanitization functions
 export const sanitizeInput = (input: string): string => {
   return input
@@ -154,4 +170,17 @@ export const validateAndSanitizeEventRegistration = (regData: any) => {
   };
   
   return eventRegistrationSchema.parse(sanitized);
+};
+
+export const validateAndSanitizeJobApplication = (appData: any) => {
+  const sanitized = {
+    ...appData,
+    applicantName: sanitizeInput(appData.applicantName),
+    applicantEmail: sanitizeEmail(appData.applicantEmail),
+    applicantPhone: appData.applicantPhone ? sanitizePhone(appData.applicantPhone) : undefined,
+    coverLetter: sanitizeInput(appData.coverLetter),
+    experience: appData.experience ? sanitizeInput(appData.experience) : undefined,
+  };
+  
+  return jobApplicationSchema.parse(sanitized);
 };

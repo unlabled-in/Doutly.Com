@@ -12,16 +12,36 @@ import {
   Shield,
   Search,
   Filter,
-  ArrowRight
+  ArrowRight,
+  X,
+  Send,
+  CheckCircle
 } from 'lucide-react';
+import { JobApplicationService } from '../lib/database';
+import { useAuth } from '../contexts/AuthContext';
 
 const Careers: React.FC = () => {
+  const { userProfile } = useAuth();
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showApplicationModal, setShowApplicationModal] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [applicationData, setApplicationData] = useState({
+    applicantName: userProfile?.displayName || '',
+    applicantEmail: userProfile?.email || '',
+    applicantPhone: userProfile?.phone || '',
+    coverLetter: '',
+    resumeLink: '',
+    experience: '',
+    skills: userProfile?.skills || []
+  });
 
+  // Reduced to 3 mock jobs as requested
   const jobs = [
     {
-      id: 1,
+      id: 'senior-fullstack-dev',
       title: 'Senior Full Stack Developer',
       department: 'Engineering',
       location: 'Remote',
@@ -39,7 +59,7 @@ const Careers: React.FC = () => {
       posted: '2 days ago'
     },
     {
-      id: 2,
+      id: 'product-manager',
       title: 'Product Manager',
       department: 'Product',
       location: 'Hybrid',
@@ -57,7 +77,7 @@ const Careers: React.FC = () => {
       posted: '1 week ago'
     },
     {
-      id: 3,
+      id: 'ux-ui-designer',
       title: 'UX/UI Designer',
       department: 'Design',
       location: 'Remote',
@@ -73,60 +93,6 @@ const Careers: React.FC = () => {
       ],
       benefits: ['Flexible Schedule', 'Creative Freedom', 'Latest Design Tools', 'Portfolio Projects'],
       posted: '3 days ago'
-    },
-    {
-      id: 4,
-      title: 'DevOps Engineer',
-      department: 'Engineering',
-      location: 'Remote',
-      type: 'Full-time',
-      experience: '3-6 years',
-      salary: '$85,000 - $130,000',
-      description: 'Build and maintain our cloud infrastructure, ensuring scalability and reliability.',
-      requirements: [
-        'Experience with AWS/GCP and containerization',
-        'Knowledge of CI/CD pipelines and automation',
-        'Strong scripting skills (Python, Bash)',
-        'Experience with monitoring and logging tools'
-      ],
-      benefits: ['Health Insurance', 'Remote Work', 'Conference Budget', 'Certification Support'],
-      posted: '5 days ago'
-    },
-    {
-      id: 5,
-      title: 'Content Marketing Manager',
-      department: 'Marketing',
-      location: 'Hybrid',
-      type: 'Full-time',
-      experience: '2-4 years',
-      salary: '$55,000 - $75,000',
-      description: 'Develop and execute content strategies to engage our community of students and educators.',
-      requirements: [
-        'Strong writing and editing skills',
-        'Experience with content management systems',
-        'Knowledge of SEO and social media marketing',
-        'Analytics and data-driven mindset'
-      ],
-      benefits: ['Health Insurance', 'Creative Projects', 'Marketing Tools', 'Growth Opportunities'],
-      posted: '1 week ago'
-    },
-    {
-      id: 6,
-      title: 'Customer Success Manager',
-      department: 'Customer Success',
-      location: 'Remote',
-      type: 'Full-time',
-      experience: '1-3 years',
-      salary: '$50,000 - $70,000',
-      description: 'Help our users succeed by providing exceptional support and building lasting relationships.',
-      requirements: [
-        'Excellent communication and interpersonal skills',
-        'Experience in customer-facing roles',
-        'Problem-solving and empathy',
-        'Familiarity with CRM tools'
-      ],
-      benefits: ['Health Insurance', 'Remote Work', 'Customer Impact', 'Career Growth'],
-      posted: '4 days ago'
     }
   ];
 
@@ -181,17 +147,90 @@ const Careers: React.FC = () => {
     }
   };
 
+  const handleApplyClick = (job: any) => {
+    setSelectedJob(job);
+    setShowApplicationModal(true);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setApplicationData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSkillsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const skillsArray = e.target.value.split(',').map(skill => skill.trim()).filter(skill => skill);
+    setApplicationData(prev => ({ ...prev, skills: skillsArray }));
+  };
+
+  const handleSubmitApplication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedJob) return;
+
+    setLoading(true);
+    try {
+      const jobApplicationData = {
+        jobTitle: selectedJob.title,
+        jobId: selectedJob.id,
+        applicantName: applicationData.applicantName,
+        applicantEmail: applicationData.applicantEmail,
+        applicantPhone: applicationData.applicantPhone,
+        coverLetter: applicationData.coverLetter,
+        resumeLink: applicationData.resumeLink,
+        experience: applicationData.experience,
+        skills: applicationData.skills,
+        status: 'pending',
+        submittedAt: new Date(),
+        priority: 'medium'
+      };
+
+      await JobApplicationService.create(jobApplicationData, userProfile?.uid);
+      
+      setSuccess(true);
+      setShowApplicationModal(false);
+      setApplicationData({
+        applicantName: userProfile?.displayName || '',
+        applicantEmail: userProfile?.email || '',
+        applicantPhone: userProfile?.phone || '',
+        coverLetter: '',
+        resumeLink: '',
+        experience: '',
+        skills: userProfile?.skills || []
+      });
+
+      setTimeout(() => setSuccess(false), 5000);
+    } catch (error) {
+      console.error('Error submitting job application:', error);
+      alert('Error submitting application. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Join Our Team</h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+        <div className="text-center mb-16">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+            Join Our <span className="text-blue-600">Team</span>
+          </h1>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
             Help us revolutionize education technology. We're looking for passionate individuals 
             who want to make a difference in how people learn and grow.
           </p>
         </div>
+
+        {success && (
+          <div className="mb-8 bg-green-50 border border-green-200 text-green-800 px-6 py-4 rounded-lg max-w-4xl mx-auto">
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="h-5 w-5" />
+              <span className="font-medium">Application submitted successfully!</span>
+            </div>
+            <p className="mt-1 text-sm">
+              Thank you for your interest! Our HR team will review your application and get back to you within 5-7 business days.
+            </p>
+          </div>
+        )}
 
         {/* Company Values */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 mb-12">
@@ -296,9 +335,11 @@ const Careers: React.FC = () => {
                 </div>
 
                 <div className="mt-6 lg:mt-0 lg:ml-6">
-                  <button className="w-full lg:w-auto bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2">
+                  <button 
+                    onClick={() => handleApplyClick(job)}
+                    className="w-full lg:w-auto bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+                  >
                     <span>Apply Now</span>
-                
                     <ArrowRight className="h-4 w-4" />
                   </button>
                 </div>
@@ -315,6 +356,140 @@ const Careers: React.FC = () => {
           </div>
         )}
 
+        {/* Job Application Modal */}
+        {showApplicationModal && selectedJob && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Apply for {selectedJob.title}</h3>
+                  <button
+                    onClick={() => setShowApplicationModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-600 mt-1">{selectedJob.department} • {selectedJob.location}</p>
+              </div>
+              
+              <form onSubmit={handleSubmitApplication} className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                    <input
+                      type="text"
+                      name="applicantName"
+                      value={applicationData.applicantName}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                    <input
+                      type="email"
+                      name="applicantEmail"
+                      value={applicationData.applicantEmail}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                  <input
+                    type="tel"
+                    name="applicantPhone"
+                    value={applicationData.applicantPhone}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Experience Level</label>
+                  <input
+                    type="text"
+                    name="experience"
+                    value={applicationData.experience}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 3 years in React development"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Skills</label>
+                  <input
+                    type="text"
+                    value={applicationData.skills.join(', ')}
+                    onChange={handleSkillsChange}
+                    placeholder="e.g., React, Node.js, Python (comma separated)"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Resume/Portfolio Link</label>
+                  <input
+                    type="url"
+                    name="resumeLink"
+                    value={applicationData.resumeLink}
+                    onChange={handleInputChange}
+                    placeholder="https://your-portfolio.com or link to resume"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Cover Letter *</label>
+                  <textarea
+                    name="coverLetter"
+                    value={applicationData.coverLetter}
+                    onChange={handleInputChange}
+                    rows={6}
+                    placeholder="Tell us why you're interested in this position and what makes you a great fit..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                    required
+                  />
+                  <p className="text-sm text-gray-500 mt-1">Minimum 50 characters</p>
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowApplicationModal(false)}
+                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading || applicationData.coverLetter.length < 50}
+                    className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Submitting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" />
+                        <span>Submit Application</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* CTA Section */}
         <div className="mt-16 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-8 text-center">
           <h2 className="text-3xl font-bold text-white mb-4">Don't See the Right Role?</h2>
@@ -322,7 +497,10 @@ const Careers: React.FC = () => {
             We're always looking for talented individuals. Send us your resume and let us know 
             how you'd like to contribute to revolutionizing education.
           </p>
-          <button className="bg-white text-blue-600 px-8 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-colors">
+          <button 
+            onClick={() => handleApplyClick({ id: 'general', title: 'General Application', department: 'Various', location: 'Remote' })}
+            className="bg-white text-blue-600 px-8 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+          >
             Send Your Resume
           </button>
         </div>
