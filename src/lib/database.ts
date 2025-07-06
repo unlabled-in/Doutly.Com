@@ -27,11 +27,14 @@ import {
   validateAndSanitizeApplication, 
   validateAndSanitizeEventRegistration,
   validateAndSanitizeUser,
-  validateAndSanitizeJobApplication
+  validateAndSanitizeJobApplication,
+  validateAndSanitizeHackathon,
+  validateAndSanitizeJob,
+  createRateLimiter
 } from './validation';
 
-// Rate limiting store
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+// Rate limiting
+const rateLimiter = createRateLimiter(50, 60000); // 50 requests per minute
 
 // Cache for real-time listeners
 const listenerCache = new Map<string, () => void>();
@@ -42,36 +45,16 @@ const offlineCache = new Map<string, any>();
 // Connection state
 let isConnected = true;
 
-// Rate limiting function
-export const checkRateLimit = (userId: string, maxRequests: number = 10, windowMs: number = 60000): boolean => {
-  const now = Date.now();
-  const userLimit = rateLimitStore.get(userId);
-  
-  if (!userLimit || now > userLimit.resetTime) {
-    rateLimitStore.set(userId, { count: 1, resetTime: now + windowMs });
-    return true;
-  }
-  
-  if (userLimit.count >= maxRequests) {
-    return false;
-  }
-  
-  userLimit.count++;
-  return true;
-};
-
-// Connection error handler
+// Enhanced error handling
 const handleConnectionError = async (error: any, operation: string): Promise<void> => {
-  console.warn(`Firebase ${operation} failed:`, error);
+  console.warn(`Firebase ${operation} failed:`, error.code || error.message);
   
   if (error.code === 'unavailable' || error.code === 'unknown') {
     isConnected = false;
     
-    // Try to reconnect
     const reconnected = await retryConnection();
     if (reconnected) {
       isConnected = true;
-      console.log('Firebase connection restored');
     }
   }
 };
@@ -181,7 +164,6 @@ export interface StandardizedUser {
   lastLoginAt?: Date | Timestamp;
   isActive: boolean;
   profileComplete: boolean;
-  // Role-specific fields
   ticketNumbers?: string[];
   teamId?: string;
   assignedLeads?: number;
@@ -216,19 +198,61 @@ export interface StandardizedJobApplication {
   priority: 'low' | 'medium' | 'high';
 }
 
-// Generic database operations with enhanced error handling and offline support
+export interface StandardizedHackathon {
+  id?: string;
+  title: string;
+  description: string;
+  content: string;
+  tags: string[];
+  thumbnail?: string;
+  visibility: 'public' | 'private';
+  status: 'draft' | 'published' | 'ongoing' | 'completed';
+  startDate?: Date | Timestamp;
+  endDate?: Date | Timestamp;
+  registrationDeadline?: Date | Timestamp;
+  maxParticipants?: number;
+  currentParticipants: number;
+  prizes: string[];
+  requirements: string[];
+  authorId: string;
+  authorName: string;
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
+  views: number;
+  registrations: number;
+}
+
+export interface StandardizedJob {
+  id?: string;
+  title: string;
+  department: string;
+  location: string;
+  type: 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
+  experience: string;
+  salary: string;
+  description: string;
+  requirements: string[];
+  benefits: string[];
+  posted: string;
+  status: 'active' | 'inactive' | 'closed';
+  authorId: string;
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
+}
+
+// Enhanced database operations with security
 export class DatabaseService {
-  // Create document with validation and audit trail
+  // Create document with enhanced security
   static async createDocument(collectionName: string, data: any, userId?: string): Promise<string> {
     try {
       // Rate limiting
-      if (userId && !checkRateLimit(userId)) {
+      if (userId && !rateLimiter(userId)) {
         throw new Error('Rate limit exceeded. Please try again later.');
       }
 
       let validatedData;
       
-      // Validate based on collection type
+      // Validate and sanitize based on collection type
       switch (collectionName) {
         case 'leads':
           validatedData = this.standardizeLead(data);
@@ -245,8 +269,14 @@ export class DatabaseService {
         case 'job_applications':
           validatedData = this.standardizeJobApplication(data);
           break;
+        case 'hackathons':
+          validatedData = this.standardizeHackathon(data);
+          break;
+        case 'jobs':
+          validatedData = this.standardizeJob(data);
+          break;
         default:
-          validatedData = data;
+          throw new Error('Invalid collection name');
       }
 
       // Add timestamps
@@ -273,16 +303,15 @@ export class DatabaseService {
       return docRef.id;
     } catch (error: any) {
       await handleConnectionError(error, 'create');
-      console.error(`Error creating document in ${collectionName}:`, error);
       throw new Error(`Failed to create ${collectionName.slice(0, -1)}: ${error.message || 'Unknown error'}`);
     }
   }
 
-  // Update document with optimistic updates and conflict resolution
+  // Update document with enhanced security
   static async updateDocument(collectionName: string, docId: string, data: any, userId?: string): Promise<void> {
     try {
       // Rate limiting
-      if (userId && !checkRateLimit(userId)) {
+      if (userId && !rateLimiter(userId)) {
         throw new Error('Rate limit exceeded. Please try again later.');
       }
 
@@ -292,9 +321,12 @@ export class DatabaseService {
         throw new Error('Document not found');
       }
 
+      // Sanitize update data
+      const sanitizedData = this.sanitizeUpdateData(data);
+      
       // Add update timestamp
       const updateData = {
-        ...data,
+        ...sanitizedData,
         updatedAt: serverTimestamp()
       };
       
@@ -320,19 +352,21 @@ export class DatabaseService {
       }
     } catch (error: any) {
       await handleConnectionError(error, 'update');
-      console.error(`Error updating document in ${collectionName}:`, error);
       throw new Error(`Failed to update ${collectionName.slice(0, -1)}: ${error.message || 'Unknown error'}`);
     }
   }
 
-  // Delete document with cascade
+  // Delete document with enhanced security
   static async deleteDocument(collectionName: string, docId: string, userId?: string): Promise<void> {
     try {
       // Rate limiting
-      if (userId && !checkRateLimit(userId)) {
+      if (userId && !rateLimiter(userId)) {
         throw new Error('Rate limit exceeded. Please try again later.');
       }
 
+      // Get document before deletion for audit
+      const docToDelete = await getDoc(doc(db, collectionName, docId));
+      
       await deleteDoc(doc(db, collectionName, docId));
       
       // Remove from cache
@@ -345,17 +379,17 @@ export class DatabaseService {
           collection: collectionName,
           documentId: docId,
           userId,
-          timestamp: new Date()
+          timestamp: new Date(),
+          previousData: docToDelete.exists() ? docToDelete.data() : null
         });
       }
     } catch (error: any) {
       await handleConnectionError(error, 'delete');
-      console.error(`Error deleting document from ${collectionName}:`, error);
       throw new Error(`Failed to delete ${collectionName.slice(0, -1)}: ${error.message || 'Unknown error'}`);
     }
   }
 
-  // Real-time listener with caching and offline support
+  // Real-time listener with enhanced security
   static subscribeToCollection(
     collectionName: string,
     constraints: QueryConstraint[] = [],
@@ -394,7 +428,6 @@ export class DatabaseService {
         
         callback(data);
       }, (error) => {
-        console.error(`Error in real-time listener for ${collectionName}:`, error);
         handleConnectionError(error, 'subscription');
         
         // Fallback to cached data if available
@@ -405,11 +438,7 @@ export class DatabaseService {
           }
         });
         
-        if (cachedData.length > 0) {
-          callback(cachedData);
-        } else {
-          callback([]);
-        }
+        callback(cachedData);
       });
 
       // Cache the unsubscribe function
@@ -419,13 +448,12 @@ export class DatabaseService {
 
       return unsubscribe;
     } catch (error: any) {
-      console.error(`Error setting up listener for ${collectionName}:`, error);
       callback([]);
       return () => {};
     }
   }
 
-  // Get document with caching and offline support
+  // Get document with enhanced security
   static async getDocument(collectionName: string, docId: string): Promise<any | null> {
     try {
       const cacheKey = `${collectionName}_${docId}`;
@@ -458,12 +486,11 @@ export class DatabaseService {
         return offlineCache.get(cacheKey);
       }
       
-      console.error(`Error getting document from ${collectionName}:`, error);
       throw new Error(`Failed to get ${collectionName.slice(0, -1)}: ${error.message || 'Unknown error'}`);
     }
   }
 
-  // Get documents with pagination and caching
+  // Get documents with pagination and enhanced security
   static async getDocuments(
     collectionName: string, 
     constraints: QueryConstraint[] = [],
@@ -471,7 +498,7 @@ export class DatabaseService {
     lastDoc?: DocumentSnapshot
   ): Promise<{ documents: any[]; lastDoc: DocumentSnapshot | null }> {
     try {
-      let queryConstraints = [...constraints, limit(pageSize)];
+      let queryConstraints = [...constraints, limit(Math.min(pageSize, 100))]; // Max 100 items per page
       
       if (lastDoc) {
         queryConstraints.push(startAfter(lastDoc));
@@ -516,152 +543,242 @@ export class DatabaseService {
         return { documents: cachedData.slice(0, pageSize), lastDoc: null };
       }
       
-      console.error(`Error getting documents from ${collectionName}:`, error);
       throw new Error(`Failed to get ${collectionName}: ${error.message || 'Unknown error'}`);
     }
   }
 
-  // Standardization methods
+  // Enhanced sanitization for update data
+  private static sanitizeUpdateData(data: any): any {
+    const sanitized: any = {};
+    
+    for (const [key, value] of Object.entries(data)) {
+      if (typeof value === 'string') {
+        sanitized[key] = value.trim().substring(0, 10000);
+      } else if (Array.isArray(value)) {
+        sanitized[key] = value.slice(0, 100);
+      } else if (typeof value === 'number') {
+        sanitized[key] = Math.max(-1000000, Math.min(1000000, value));
+      } else {
+        sanitized[key] = value;
+      }
+    }
+    
+    return sanitized;
+  }
+
+  // Standardization methods with enhanced validation
   static standardizeLead(data: any): StandardizedLead {
-    return {
-      ticketNumber: data.ticketNumber || '',
-      type: data.type || 'tutor_request',
-      studentId: data.studentId || '',
-      studentName: data.studentName || '',
-      studentEmail: data.studentEmail || '',
-      studentPhone: data.studentPhone || null,
-      doubtDescription: data.doubtDescription || '',
-      subject: data.subject || '',
-      tutorType: data.tutorType || null,
-      scheduledDate: data.scheduledDate || null,
-      scheduledTime: data.scheduledTime || null,
-      projectTitle: data.projectTitle || null,
-      projectDescription: data.projectDescription || null,
-      techStack: data.techStack || null,
-      projectType: data.projectType || null,
-      timeline: data.timeline || null,
-      budget: data.budget || null,
-      experience: data.experience || null,
-      specificHelp: data.specificHelp || null,
-      urgencyLevel: data.urgencyLevel || 'medium',
-      status: data.status || 'open',
-      priority: data.priority || 'medium',
-      createdAt: data.createdAt || new Date(),
-      updatedAt: data.updatedAt || new Date(),
-      assignedTo: data.assignedTo || null,
-      assignedBy: data.assignedBy || null,
-      notes: data.notes || [],
-      source: data.source || 'Website',
-      value: data.value || 0,
-      conversionProbability: data.conversionProbability || 50,
-      history: data.history || []
-    };
+    try {
+      return validateAndSanitizeLead({
+        ticketNumber: data.ticketNumber || '',
+        type: data.type || 'tutor_request',
+        studentId: data.studentId || '',
+        studentName: data.studentName || '',
+        studentEmail: data.studentEmail || '',
+        studentPhone: data.studentPhone || null,
+        doubtDescription: data.doubtDescription || '',
+        subject: data.subject || '',
+        tutorType: data.tutorType || null,
+        scheduledDate: data.scheduledDate || null,
+        scheduledTime: data.scheduledTime || null,
+        projectTitle: data.projectTitle || null,
+        projectDescription: data.projectDescription || null,
+        techStack: data.techStack || null,
+        projectType: data.projectType || null,
+        timeline: data.timeline || null,
+        budget: data.budget || null,
+        experience: data.experience || null,
+        specificHelp: data.specificHelp || null,
+        urgencyLevel: data.urgencyLevel || 'medium',
+        status: data.status || 'open',
+        priority: data.priority || 'medium',
+        createdAt: data.createdAt || new Date(),
+        updatedAt: data.updatedAt || new Date(),
+        assignedTo: data.assignedTo || null,
+        assignedBy: data.assignedBy || null,
+        notes: data.notes || [],
+        source: data.source || 'Website',
+        value: data.value || 0,
+        conversionProbability: data.conversionProbability || 50,
+        history: data.history || []
+      });
+    } catch (error) {
+      throw new Error('Invalid lead data');
+    }
   }
 
   static standardizeApplication(data: any): StandardizedApplication {
-    return {
-      type: data.type || 'tutor_application',
-      name: data.name || null,
-      organizationName: data.organizationName || null,
-      contactName: data.contactName || null,
-      email: data.email || '',
-      phone: data.phone || null,
-      website: data.website || null,
-      status: data.status || 'pending',
-      submittedAt: data.submittedAt || new Date(),
-      updatedAt: data.updatedAt || new Date(),
-      skills: data.skills || [],
-      experience: data.experience || null,
-      hourlyRate: data.hourlyRate || null,
-      bio: data.bio || null,
-      education: data.education || null,
-      availability: data.availability || [],
-      languages: data.languages || [],
-      partnershipType: data.partnershipType || null,
-      eventType: data.eventType || null,
-      targetAudience: data.targetAudience || null,
-      estimatedAttendees: data.estimatedAttendees || null,
-      eventFrequency: data.eventFrequency || null,
-      budget: data.budget || null,
-      message: data.message || null,
-      priority: data.priority || 'medium',
-      reviewedBy: data.reviewedBy || null,
-      reviewNotes: data.reviewNotes || null,
-      description: data.description || null,
-      expectedAttendees: data.expectedAttendees || null
-    };
+    try {
+      return validateAndSanitizeApplication({
+        type: data.type || 'tutor_application',
+        name: data.name || null,
+        organizationName: data.organizationName || null,
+        contactName: data.contactName || null,
+        email: data.email || '',
+        phone: data.phone || null,
+        website: data.website || null,
+        status: data.status || 'pending',
+        submittedAt: data.submittedAt || new Date(),
+        updatedAt: data.updatedAt || new Date(),
+        skills: data.skills || [],
+        experience: data.experience || null,
+        hourlyRate: data.hourlyRate || null,
+        bio: data.bio || null,
+        education: data.education || null,
+        availability: data.availability || [],
+        languages: data.languages || [],
+        partnershipType: data.partnershipType || null,
+        eventType: data.eventType || null,
+        targetAudience: data.targetAudience || null,
+        estimatedAttendees: data.estimatedAttendees || null,
+        eventFrequency: data.eventFrequency || null,
+        budget: data.budget || null,
+        message: data.message || null,
+        priority: data.priority || 'medium',
+        reviewedBy: data.reviewedBy || null,
+        reviewNotes: data.reviewNotes || null,
+        description: data.description || null,
+        expectedAttendees: data.expectedAttendees || null
+      });
+    } catch (error) {
+      throw new Error('Invalid application data');
+    }
   }
 
   static standardizeEventRegistration(data: any): StandardizedEventRegistration {
-    return {
-      name: data.name || '',
-      email: data.email || '',
-      phone: data.phone || null,
-      eventId: data.eventId || '',
-      eventTitle: data.eventTitle || '',
-      eventType: data.eventType || '',
-      registrationDate: data.registrationDate || new Date(),
-      updatedAt: data.updatedAt || new Date(),
-      status: data.status || 'pending',
-      institution: data.institution || null,
-      additionalInfo: data.additionalInfo || null,
-      approvedBy: data.approvedBy || null,
-      approvalDate: data.approvalDate || null,
-      rejectionReason: data.rejectionReason || null
-    };
+    try {
+      return validateAndSanitizeEventRegistration({
+        name: data.name || '',
+        email: data.email || '',
+        phone: data.phone || null,
+        eventId: data.eventId || '',
+        eventTitle: data.eventTitle || '',
+        eventType: data.eventType || '',
+        registrationDate: data.registrationDate || new Date(),
+        updatedAt: data.updatedAt || new Date(),
+        status: data.status || 'pending',
+        institution: data.institution || null,
+        additionalInfo: data.additionalInfo || null,
+        approvedBy: data.approvedBy || null,
+        approvalDate: data.approvalDate || null,
+        rejectionReason: data.rejectionReason || null
+      });
+    } catch (error) {
+      throw new Error('Invalid event registration data');
+    }
   }
 
   static standardizeUser(data: any): StandardizedUser {
-    return {
-      uid: data.uid || '',
-      email: data.email || '',
-      displayName: data.displayName || '',
-      role: data.role || 'student',
-      phone: data.phone || null,
-      skills: data.skills || [],
-      institution: data.institution || null,
-      createdAt: data.createdAt || new Date(),
-      updatedAt: data.updatedAt || new Date(),
-      lastLoginAt: data.lastLoginAt || null,
-      isActive: data.isActive !== undefined ? data.isActive : true,
-      profileComplete: data.profileComplete !== undefined ? data.profileComplete : false,
-      ticketNumbers: data.ticketNumbers || [],
-      teamId: data.teamId || null,
-      assignedLeads: data.assignedLeads || 0,
-      convertedLeads: data.convertedLeads || 0,
-      totalEarnings: data.totalEarnings || 0,
-      rating: data.rating || null,
-      totalSessions: data.totalSessions || 0,
-      availability: data.availability || [],
-      languages: data.languages || [],
-      hourlyRate: data.hourlyRate || null,
-      bio: data.bio || null,
-      education: data.education || null,
-      experience: data.experience || null
-    };
+    try {
+      return validateAndSanitizeUser({
+        uid: data.uid || '',
+        email: data.email || '',
+        displayName: data.displayName || '',
+        role: data.role || 'student',
+        phone: data.phone || null,
+        skills: data.skills || [],
+        institution: data.institution || null,
+        createdAt: data.createdAt || new Date(),
+        updatedAt: data.updatedAt || new Date(),
+        lastLoginAt: data.lastLoginAt || null,
+        isActive: data.isActive !== undefined ? data.isActive : true,
+        profileComplete: data.profileComplete !== undefined ? data.profileComplete : false,
+        ticketNumbers: data.ticketNumbers || [],
+        teamId: data.teamId || null,
+        assignedLeads: data.assignedLeads || 0,
+        convertedLeads: data.convertedLeads || 0,
+        totalEarnings: data.totalEarnings || 0,
+        rating: data.rating || null,
+        totalSessions: data.totalSessions || 0,
+        availability: data.availability || [],
+        languages: data.languages || [],
+        hourlyRate: data.hourlyRate || null,
+        bio: data.bio || null,
+        education: data.education || null,
+        experience: data.experience || null
+      });
+    } catch (error) {
+      throw new Error('Invalid user data');
+    }
   }
 
   static standardizeJobApplication(data: any): StandardizedJobApplication {
-    return {
-      jobTitle: data.jobTitle || '',
-      jobId: data.jobId || '',
-      applicantName: data.applicantName || '',
-      applicantEmail: data.applicantEmail || '',
-      applicantPhone: data.applicantPhone || null,
-      coverLetter: data.coverLetter || '',
-      resumeLink: data.resumeLink || null,
-      experience: data.experience || null,
-      skills: data.skills || [],
-      status: data.status || 'pending',
-      submittedAt: data.submittedAt || new Date(),
-      updatedAt: data.updatedAt || new Date(),
-      reviewedBy: data.reviewedBy || null,
-      reviewNotes: data.reviewNotes || null,
-      priority: data.priority || 'medium'
-    };
+    try {
+      return validateAndSanitizeJobApplication({
+        jobTitle: data.jobTitle || '',
+        jobId: data.jobId || '',
+        applicantName: data.applicantName || '',
+        applicantEmail: data.applicantEmail || '',
+        applicantPhone: data.applicantPhone || null,
+        coverLetter: data.coverLetter || '',
+        resumeLink: data.resumeLink || null,
+        experience: data.experience || null,
+        skills: data.skills || [],
+        status: data.status || 'pending',
+        submittedAt: data.submittedAt || new Date(),
+        updatedAt: data.updatedAt || new Date(),
+        reviewedBy: data.reviewedBy || null,
+        reviewNotes: data.reviewNotes || null,
+        priority: data.priority || 'medium'
+      });
+    } catch (error) {
+      throw new Error('Invalid job application data');
+    }
   }
 
-  // Audit logging
+  static standardizeHackathon(data: any): StandardizedHackathon {
+    try {
+      return validateAndSanitizeHackathon({
+        title: data.title || '',
+        description: data.description || '',
+        content: data.content || '',
+        tags: data.tags || [],
+        thumbnail: data.thumbnail || null,
+        visibility: data.visibility || 'public',
+        status: data.status || 'draft',
+        startDate: data.startDate || null,
+        endDate: data.endDate || null,
+        registrationDeadline: data.registrationDeadline || null,
+        maxParticipants: data.maxParticipants || null,
+        currentParticipants: data.currentParticipants || 0,
+        prizes: data.prizes || [],
+        requirements: data.requirements || [],
+        authorId: data.authorId || '',
+        authorName: data.authorName || '',
+        createdAt: data.createdAt || new Date(),
+        updatedAt: data.updatedAt || new Date(),
+        views: data.views || 0,
+        registrations: data.registrations || 0
+      });
+    } catch (error) {
+      throw new Error('Invalid hackathon data');
+    }
+  }
+
+  static standardizeJob(data: any): StandardizedJob {
+    try {
+      return validateAndSanitizeJob({
+        title: data.title || '',
+        department: data.department || '',
+        location: data.location || '',
+        type: data.type || 'Full-time',
+        experience: data.experience || '',
+        salary: data.salary || '',
+        description: data.description || '',
+        requirements: data.requirements || [],
+        benefits: data.benefits || [],
+        posted: data.posted || '',
+        status: data.status || 'active',
+        authorId: data.authorId || '',
+        createdAt: data.createdAt || new Date(),
+        updatedAt: data.updatedAt || new Date()
+      });
+    } catch (error) {
+      throw new Error('Invalid job data');
+    }
+  }
+
+  // Enhanced audit logging
   static async createAuditLog(logData: {
     action: string;
     collection: string;
@@ -674,10 +791,11 @@ export class DatabaseService {
     try {
       await addDoc(collection(db, 'audit_logs'), {
         ...logData,
-        timestamp: serverTimestamp()
+        timestamp: serverTimestamp(),
+        ip: 'hidden', // Don't log IP for privacy
+        userAgent: 'hidden' // Don't log user agent for privacy
       });
     } catch (error) {
-      console.error('Error creating audit log:', error);
       // Don't throw error for audit log failures
     }
   }
@@ -704,7 +822,7 @@ export class DatabaseService {
   }
 }
 
-// Enhanced service functions with real-time capabilities
+// Enhanced service functions with security
 export const LeadService = {
   create: (data: any, userId?: string) => DatabaseService.createDocument('leads', data, userId),
   update: (id: string, data: any, userId?: string) => DatabaseService.updateDocument('leads', id, data, userId),
@@ -714,7 +832,6 @@ export const LeadService = {
     DatabaseService.getDocuments('leads', constraints, pageSize, lastDoc),
   subscribe: (constraints: QueryConstraint[], callback: (data: any[]) => void, cacheKey?: string) =>
     DatabaseService.subscribeToCollection('leads', constraints, callback, cacheKey),
-  // Simple queries without ordering to avoid index issues
   getByStudentId: (studentId: string, callback: (data: any[]) => void) =>
     DatabaseService.subscribeToCollection('leads', [where('studentId', '==', studentId)], callback, `leads_student_${studentId}`),
   getByAssignedTo: (assignedTo: string, callback: (data: any[]) => void) =>
@@ -741,7 +858,6 @@ export const EventRegistrationService = {
     DatabaseService.getDocuments('event_registrations', constraints, pageSize, lastDoc),
   subscribe: (constraints: QueryConstraint[], callback: (data: any[]) => void, cacheKey?: string) =>
     DatabaseService.subscribeToCollection('event_registrations', constraints, callback, cacheKey),
-  // Simple query without ordering to avoid index issues
   getByEmail: (email: string, callback: (data: any[]) => void) =>
     DatabaseService.subscribeToCollection('event_registrations', [where('email', '==', email)], callback, `events_${email}`)
 };
@@ -766,6 +882,28 @@ export const JobApplicationService = {
     DatabaseService.getDocuments('job_applications', constraints, pageSize, lastDoc),
   subscribe: (constraints: QueryConstraint[], callback: (data: any[]) => void, cacheKey?: string) =>
     DatabaseService.subscribeToCollection('job_applications', constraints, callback, cacheKey)
+};
+
+export const HackathonService = {
+  create: (data: any, userId?: string) => DatabaseService.createDocument('hackathons', data, userId),
+  update: (id: string, data: any, userId?: string) => DatabaseService.updateDocument('hackathons', id, data, userId),
+  delete: (id: string, userId?: string) => DatabaseService.deleteDocument('hackathons', id, userId),
+  get: (id: string) => DatabaseService.getDocument('hackathons', id),
+  getAll: (constraints?: QueryConstraint[], pageSize?: number, lastDoc?: DocumentSnapshot) => 
+    DatabaseService.getDocuments('hackathons', constraints, pageSize, lastDoc),
+  subscribe: (constraints: QueryConstraint[], callback: (data: any[]) => void, cacheKey?: string) =>
+    DatabaseService.subscribeToCollection('hackathons', constraints, callback, cacheKey)
+};
+
+export const JobService = {
+  create: (data: any, userId?: string) => DatabaseService.createDocument('jobs', data, userId),
+  update: (id: string, data: any, userId?: string) => DatabaseService.updateDocument('jobs', id, data, userId),
+  delete: (id: string, userId?: string) => DatabaseService.deleteDocument('jobs', id, userId),
+  get: (id: string) => DatabaseService.getDocument('jobs', id),
+  getAll: (constraints?: QueryConstraint[], pageSize?: number, lastDoc?: DocumentSnapshot) => 
+    DatabaseService.getDocuments('jobs', constraints, pageSize, lastDoc),
+  subscribe: (constraints: QueryConstraint[], callback: (data: any[]) => void, cacheKey?: string) =>
+    DatabaseService.subscribeToCollection('jobs', constraints, callback, cacheKey)
 };
 
 // Connection status utility
