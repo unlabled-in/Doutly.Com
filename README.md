@@ -86,3 +86,49 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
   <br/>
   <b>Doutly - Empowering Education, Instantly.</b>
 </p>
+
+---
+
+## **How to Fix**
+
+### 1. **Install Terser as a Dev Dependency**
+
+Run this command in your project root:
+
+```sh
+npm install --save-dev terser
+```
+
+Or, if you use Yarn:
+
+```sh
+yarn add --dev terser
+```
+
+---
+
+### 2. **Re-run the Build**
+
+After installing, try:
+
+```sh
+npm run build
+```
+
+If it works locally, push your changes and Netlify will pick up the fix on the next deploy.
+
+---
+
+## **Why This Happens**
+
+- Some Vite plugins or your Vite config may explicitly request Terser for minification.
+- Vite no longer bundles Terser by default, so you must install it yourself if you want to use it.
+
+---
+
+## **Summary**
+
+- **Install Terser:** `npm install --save-dev terser`
+- **Rebuild locally and on Netlify**
+
+This should resolve your build error. If you see any new errors, please share the full message for further help!
