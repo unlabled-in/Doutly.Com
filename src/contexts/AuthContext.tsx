@@ -33,16 +33,12 @@ export const useAuth = () => {
   return context;
 };
 
-// Enhanced role-based email detection with security
+// Enhanced role-based email detection for Indian context
 const getRoleFromEmail = (email: string): UserProfile['role'] => {
-  if (!email || typeof email !== 'string') return 'student';
-  
-  const sanitizedEmail = email.toLowerCase().trim();
-  const domain = sanitizedEmail.split('@')[1];
-  
+  const domain = email.split('@')[1];
   if (domain !== 'doutly.com') return 'student';
   
-  const prefix = sanitizedEmail.split('@')[0];
+  const prefix = email.split('@')[0].toLowerCase();
   
   // Check for exact role matches
   if (prefix === 'admin') return 'admin';
@@ -110,15 +106,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string, profileData: Partial<UserProfile>) => {
     try {
-      // Enhanced validation
-      if (!email || !password || !profileData.displayName) {
-        throw new Error('Missing required fields');
-      }
-
-      if (password.length < 8) {
-        throw new Error('Password must be at least 8 characters long');
-      }
-
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
@@ -126,7 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         displayName: profileData.displayName
       });
 
-      // Determine role based on email with enhanced security
+      // Determine role based on email
       const detectedRole = getRoleFromEmail(email);
       const finalRole = profileData.role || detectedRole;
 
@@ -156,21 +143,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setTimeout(() => {
         window.location.href = dashboardPath;
       }, 100);
-    } catch (error: any) {
-      throw new Error(error.message || 'Failed to create account');
+    } catch (error) {
+      console.error('Error in signUp:', error);
+      throw error;
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      if (!email || !password) {
-        throw new Error('Email and password are required');
-      }
-
       await signInWithEmailAndPassword(auth, email, password);
       // User profile update and redirection will be handled in onAuthStateChanged
-    } catch (error: any) {
-      throw new Error(error.message || 'Failed to sign in');
+    } catch (error) {
+      console.error('Error in signIn:', error);
+      throw error;
     }
   };
 
@@ -181,8 +166,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       redirectedRef.current = false;
       lastRedirectPath.current = '';
       window.location.href = '/';
-    } catch (error: any) {
-      throw new Error(error.message || 'Failed to sign out');
+    } catch (error) {
+      console.error('Error in signOut:', error);
+      throw error;
     }
   };
 
@@ -203,8 +189,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Update local state
       setUserProfile(prev => prev ? { ...prev, ...updatedData } : null);
-    } catch (error: any) {
-      throw new Error(error.message || 'Failed to update profile');
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      throw error;
     }
   };
 
@@ -216,8 +203,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (userData) {
         setUserProfile(userData);
       }
-    } catch (error: any) {
-      console.warn('Error refreshing user profile:', error.message);
+    } catch (error) {
+      console.error('Error refreshing user profile:', error);
     }
   };
 
@@ -263,7 +250,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
             }
 
-            // Auto-redirect to dashboard with enhanced security
+            // Auto-redirect to dashboard only if:
+            // 1. User is on auth pages (signin/signup) or unauthorized page
+            // 2. Not initial load
+            // 3. Haven't redirected recently to avoid loops
+            // 4. Not redirecting to the same path
             const currentPath = window.location.pathname;
             const dashboardPath = getDashboardPath(userDoc.role);
             
@@ -284,7 +275,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }, 100);
             }
           } else {
-            // Create user profile if it doesn't exist with enhanced validation
+            // Create user profile if it doesn't exist
             const profile: UserProfile = DatabaseService.standardizeUser({
               uid: user.uid,
               email: user.email!,

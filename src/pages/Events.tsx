@@ -12,7 +12,7 @@ import {
   Send,
   CheckCircle
 } from 'lucide-react';
-import { ApplicationService, EventRegistrationService, HackathonService } from '../lib/database';
+import { ApplicationService, EventRegistrationService } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import BackButton from '../components/BackButton';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -25,8 +25,6 @@ const Events: React.FC = () => {
   const [showPartnerForm, setShowPartnerForm] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [events, setEvents] = useState<any[]>([]);
-  const [hackathons, setHackathons] = useState<any[]>([]);
   const [registrationData, setRegistrationData] = useState({
     name: userProfile?.displayName || '',
     email: userProfile?.email || '',
@@ -47,8 +45,8 @@ const Events: React.FC = () => {
     partnershipType: 'event_hosting'
   });
 
-  // Static events data
-  const staticEvents = [
+  // Real events data - replace with Firebase data
+  const events = [
     {
       id: 'web-dev-bootcamp-2024',
       title: 'Web Development Bootcamp',
@@ -66,6 +64,24 @@ const Events: React.FC = () => {
       rating: 4.8,
       image: 'https://images.pexels.com/photos/3861958/pexels-photo-3861958.jpeg?auto=compress&cs=tinysrgb&w=800',
       tags: ['React', 'Node.js', 'MongoDB', 'JavaScript']
+    },
+    {
+      id: 'ai-ml-hackathon-2024',
+      title: 'AI/ML Hackathon 2024',
+      description: 'Build innovative AI solutions in 48 hours. Win prizes and network with industry experts.',
+      date: '2024-12-20',
+      time: '9:00 AM',
+      duration: '48 hours',
+      type: 'Competition',
+      category: 'Artificial Intelligence',
+      institution: 'Innovation Hub',
+      location: 'Hybrid',
+      attendees: 300,
+      maxAttendees: 500,
+      price: '$25',
+      rating: 4.9,
+      image: 'https://images.pexels.com/photos/3861969/pexels-photo-3861969.jpeg?auto=compress&cs=tinysrgb&w=800',
+      tags: ['AI', 'Machine Learning', 'Python', 'TensorFlow']
     },
     {
       id: 'career-fair-2024',
@@ -102,51 +118,46 @@ const Events: React.FC = () => {
       rating: 4.6,
       image: 'https://images.pexels.com/photos/3861943/pexels-photo-3861943.jpeg?auto=compress&cs=tinysrgb&w=800',
       tags: ['Python', 'Pandas', 'Visualization', 'Statistics']
+    },
+    {
+      id: 'startup-pitch-competition-2024',
+      title: 'Startup Pitch Competition',
+      description: 'Present your startup idea to investors and win funding opportunities.',
+      date: '2024-12-30',
+      time: '3:00 PM',
+      duration: '3 hours',
+      type: 'Competition',
+      category: 'Entrepreneurship',
+      institution: 'Startup Incubator',
+      location: 'Business Center',
+      attendees: 80,
+      maxAttendees: 100,
+      price: '$15',
+      rating: 4.5,
+      image: 'https://images.pexels.com/photos/3184292/pexels-photo-3184292.jpeg?auto=compress&cs=tinysrgb&w=800',
+      tags: ['Startup', 'Pitch', 'Investment', 'Business']
+    },
+    {
+      id: 'cybersecurity-fundamentals-2025',
+      title: 'Cybersecurity Fundamentals',
+      description: 'Learn essential cybersecurity concepts and protect yourself and your organization.',
+      date: '2025-01-05',
+      time: '1:00 PM',
+      duration: '4 hours',
+      type: 'Workshop',
+      category: 'Security',
+      institution: 'Security Academy',
+      location: 'Online',
+      attendees: 200,
+      maxAttendees: 250,
+      price: '$30',
+      rating: 4.8,
+      image: 'https://images.pexels.com/photos/3861972/pexels-photo-3861972.jpeg?auto=compress&cs=tinysrgb&w=800',
+      tags: ['Security', 'Networking', 'Ethical Hacking', 'Privacy']
     }
   ];
 
-  useEffect(() => {
-    // Subscribe to hackathons from database
-    const unsubscribeHackathons = HackathonService.subscribe([], (hackathonsData) => {
-      // Filter published hackathons
-      const publishedHackathons = hackathonsData
-        .filter(h => h.status === 'published' || h.status === 'ongoing')
-        .map(h => ({
-          id: h.id,
-          title: h.title,
-          description: h.description,
-          date: h.startDate ? new Date(h.startDate.toDate()).toISOString().split('T')[0] : '2024-12-20',
-          time: h.startDate ? new Date(h.startDate.toDate()).toLocaleTimeString() : '9:00 AM',
-          duration: h.endDate && h.startDate ? 
-            Math.ceil((new Date(h.endDate.toDate()).getTime() - new Date(h.startDate.toDate()).getTime()) / (1000 * 60 * 60)) + ' hours' : 
-            '48 hours',
-          type: 'Competition',
-          category: 'Hackathon',
-          institution: 'Doutly',
-          location: 'Hybrid',
-          attendees: h.currentParticipants || 0,
-          maxAttendees: h.maxParticipants || 500,
-          price: 'Free',
-          rating: 4.9,
-          image: 'https://images.pexels.com/photos/3861969/pexels-photo-3861969.jpeg?auto=compress&cs=tinysrgb&w=800',
-          tags: h.tags || ['Hackathon', 'Competition', 'Innovation']
-        }));
-      
-      setHackathons(publishedHackathons);
-    });
-
-    // Combine static events with hackathons
-    setEvents([...staticEvents]);
-
-    return () => {
-      unsubscribeHackathons();
-    };
-  }, []);
-
-  // Combine all events
-  const allEvents = [...events, ...hackathons];
-
-  const filteredEvents = allEvents.filter(event => {
+  const filteredEvents = events.filter(event => {
     const matchesFilter = filter === 'all' || event.type.toLowerCase() === filter.toLowerCase();
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -208,6 +219,7 @@ const Events: React.FC = () => {
         message: partnerData.description
       };
 
+      // Submit to applications collection for admin review
       await ApplicationService.create(partnershipDoc, userProfile?.uid);
       
       setShowPartnerForm(false);
@@ -292,7 +304,7 @@ const Events: React.FC = () => {
               </select>
             </div>
             <div className="text-sm text-gray-600">
-              Showing {filteredEvents.length} of {allEvents.length} events
+              Showing {filteredEvents.length} of {events.length} events
             </div>
           </div>
         </div>
@@ -351,7 +363,7 @@ const Events: React.FC = () => {
                 </div>
 
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {event.tags.slice(0, 3).map((tag: string, index: number) => (
+                  {event.tags.slice(0, 3).map((tag, index) => (
                     <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs">
                       {tag}
                     </span>
