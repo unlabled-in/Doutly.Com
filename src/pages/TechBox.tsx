@@ -20,6 +20,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import BackButton from '../components/BackButton';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { sanitizeInput } from '../lib/validation';
 
 const TechBox: React.FC = () => {
   const { userProfile } = useAuth();
@@ -141,14 +142,14 @@ const TechBox: React.FC = () => {
         studentPhone: userProfile.phone || '',
         doubtDescription: `${formData.projectTitle} - ${formData.specificHelp}`,
         subject: `Tech Consultation - ${formData.projectType.replace('_', ' ')}`,
-        projectTitle: formData.projectTitle.trim(),
-        projectDescription: formData.projectDescription.trim(),
-        techStack: formData.techStack.trim(),
+        projectTitle: sanitizeInput(formData.projectTitle),
+        projectDescription: sanitizeInput(formData.projectDescription),
+        techStack: sanitizeInput(formData.techStack),
         projectType: formData.projectType,
         timeline: formData.timeline,
         budget: formData.budget,
         experience: formData.experience,
-        specificHelp: formData.specificHelp.trim(),
+        specificHelp: sanitizeInput(formData.specificHelp),
         urgencyLevel: formData.urgencyLevel as 'low' | 'medium' | 'high' | 'urgent',
         status: 'open' as const,
         priority: (formData.urgencyLevel === 'urgent' ? 'high' : 

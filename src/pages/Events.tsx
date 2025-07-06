@@ -12,7 +12,7 @@ import {
   Send,
   CheckCircle
 } from 'lucide-react';
-import { ApplicationService, EventRegistrationService } from '../lib/database';
+import { ApplicationService, EventRegistrationService, HackathonService } from '../lib/database';
 import { useAuth } from '../contexts/AuthContext';
 import BackButton from '../components/BackButton';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -44,124 +44,20 @@ const Events: React.FC = () => {
     website: '',
     partnershipType: 'event_hosting'
   });
+  const [hackathons, setHackathons] = useState<any[]>([]);
 
-  // Real events data - replace with Firebase data
-  const events = [
-    {
-      id: 'web-dev-bootcamp-2024',
-      title: 'Web Development Bootcamp',
-      description: 'Learn modern web development with React, Node.js, and MongoDB. Perfect for beginners and intermediate developers.',
-      date: '2024-12-15',
-      time: '10:00 AM',
-      duration: '6 hours',
-      type: 'Workshop',
-      category: 'Technology',
-      institution: 'Tech University',
-      location: 'Online',
-      attendees: 150,
-      maxAttendees: 200,
-      price: 'Free',
-      rating: 4.8,
-      image: 'https://images.pexels.com/photos/3861958/pexels-photo-3861958.jpeg?auto=compress&cs=tinysrgb&w=800',
-      tags: ['React', 'Node.js', 'MongoDB', 'JavaScript']
-    },
-    {
-      id: 'ai-ml-hackathon-2024',
-      title: 'AI/ML Hackathon 2024',
-      description: 'Build innovative AI solutions in 48 hours. Win prizes and network with industry experts.',
-      date: '2024-12-20',
-      time: '9:00 AM',
-      duration: '48 hours',
-      type: 'Competition',
-      category: 'Artificial Intelligence',
-      institution: 'Innovation Hub',
-      location: 'Hybrid',
-      attendees: 300,
-      maxAttendees: 500,
-      price: '$25',
-      rating: 4.9,
-      image: 'https://images.pexels.com/photos/3861969/pexels-photo-3861969.jpeg?auto=compress&cs=tinysrgb&w=800',
-      tags: ['AI', 'Machine Learning', 'Python', 'TensorFlow']
-    },
-    {
-      id: 'career-fair-2024',
-      title: 'Career Fair 2024',
-      description: 'Connect with top employers and explore career opportunities in tech, finance, and consulting.',
-      date: '2024-12-25',
-      time: '11:00 AM',
-      duration: '4 hours',
-      type: 'Networking',
-      category: 'Career',
-      institution: 'Multiple Partners',
-      location: 'Convention Center',
-      attendees: 500,
-      maxAttendees: 1000,
-      price: 'Free',
-      rating: 4.7,
-      image: 'https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=800',
-      tags: ['Networking', 'Jobs', 'Career', 'Recruitment']
-    },
-    {
-      id: 'data-science-workshop-2024',
-      title: 'Data Science Workshop',
-      description: 'Master data analysis, visualization, and machine learning with hands-on projects.',
-      date: '2024-12-28',
-      time: '2:00 PM',
-      duration: '5 hours',
-      type: 'Workshop',
-      category: 'Data Science',
-      institution: 'Data Institute',
-      location: 'Online',
-      attendees: 120,
-      maxAttendees: 150,
-      price: '$50',
-      rating: 4.6,
-      image: 'https://images.pexels.com/photos/3861943/pexels-photo-3861943.jpeg?auto=compress&cs=tinysrgb&w=800',
-      tags: ['Python', 'Pandas', 'Visualization', 'Statistics']
-    },
-    {
-      id: 'startup-pitch-competition-2024',
-      title: 'Startup Pitch Competition',
-      description: 'Present your startup idea to investors and win funding opportunities.',
-      date: '2024-12-30',
-      time: '3:00 PM',
-      duration: '3 hours',
-      type: 'Competition',
-      category: 'Entrepreneurship',
-      institution: 'Startup Incubator',
-      location: 'Business Center',
-      attendees: 80,
-      maxAttendees: 100,
-      price: '$15',
-      rating: 4.5,
-      image: 'https://images.pexels.com/photos/3184292/pexels-photo-3184292.jpeg?auto=compress&cs=tinysrgb&w=800',
-      tags: ['Startup', 'Pitch', 'Investment', 'Business']
-    },
-    {
-      id: 'cybersecurity-fundamentals-2025',
-      title: 'Cybersecurity Fundamentals',
-      description: 'Learn essential cybersecurity concepts and protect yourself and your organization.',
-      date: '2025-01-05',
-      time: '1:00 PM',
-      duration: '4 hours',
-      type: 'Workshop',
-      category: 'Security',
-      institution: 'Security Academy',
-      location: 'Online',
-      attendees: 200,
-      maxAttendees: 250,
-      price: '$30',
-      rating: 4.8,
-      image: 'https://images.pexels.com/photos/3861972/pexels-photo-3861972.jpeg?auto=compress&cs=tinysrgb&w=800',
-      tags: ['Security', 'Networking', 'Ethical Hacking', 'Privacy']
-    }
-  ];
+  useEffect(() => {
+    const unsubscribe = HackathonService.subscribe([], (data) => {
+      setHackathons(data);
+    });
+    return () => unsubscribe();
+  }, []);
 
-  const filteredEvents = events.filter(event => {
-    const matchesFilter = filter === 'all' || event.type.toLowerCase() === filter.toLowerCase();
+  const filteredEvents = hackathons.filter(event => {
+    const matchesFilter = filter === 'all' || (event.type && event.type.toLowerCase() === filter.toLowerCase());
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.category.toLowerCase().includes(searchTerm.toLowerCase());
+                         (event.category && event.category.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesFilter && matchesSearch;
   });
 
@@ -245,7 +141,8 @@ const Events: React.FC = () => {
     }
   };
 
-  const getTypeColor = (type: string) => {
+  const getTypeColor = (type: string | undefined) => {
+    if (!type) return 'bg-gray-100 text-gray-800';
     switch (type.toLowerCase()) {
       case 'workshop': return 'bg-blue-100 text-blue-800';
       case 'competition': return 'bg-red-100 text-red-800';
@@ -304,7 +201,7 @@ const Events: React.FC = () => {
               </select>
             </div>
             <div className="text-sm text-gray-600">
-              Showing {filteredEvents.length} of {events.length} events
+              Showing {filteredEvents.length} of {hackathons.length} events
             </div>
           </div>
         </div>
@@ -315,7 +212,7 @@ const Events: React.FC = () => {
             <div key={event.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300">
               <div className="relative">
                 <img 
-                  src={event.image} 
+                  src={event.image || event.thumbnail || 'https://via.placeholder.com/400x200?text=No+Image'} 
                   alt={event.title}
                   className="w-full h-48 object-cover"
                 />

@@ -27,7 +27,7 @@ import {
 import { collection, query, onSnapshot, orderBy, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { LeadService, ApplicationService, EventRegistrationService, JobApplicationService } from '../../lib/database';
+import { LeadService, ApplicationService, EventRegistrationService, JobApplicationService, JobPostingService } from '../../lib/database';
 import BackButton from '../../components/BackButton';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -283,26 +283,6 @@ const AdminDashboard: React.FC = () => {
         <h2 className="text-xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link 
-            to="/admin/registrations"
-            className="flex items-center justify-between p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-          >
-            <div className="flex items-center space-x-3">
-              <Calendar className="h-5 w-5 text-blue-600" />
-              <span className="font-medium text-blue-900">Manage Events</span>
-            </div>
-            <ArrowRight className="h-4 w-4 text-blue-600" />
-          </Link>
-          <Link 
-            to="/creator"
-            className="flex items-center justify-between p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-          >
-            <div className="flex items-center space-x-3">
-              <BookOpen className="h-5 w-5 text-green-600" />
-              <span className="font-medium text-green-900">Content Creator</span>
-            </div>
-            <ArrowRight className="h-4 w-4 text-green-600" />
-          </Link>
-          <Link 
             to="/hackathons"
             className="flex items-center justify-between p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
           >
@@ -312,13 +292,26 @@ const AdminDashboard: React.FC = () => {
             </div>
             <ArrowRight className="h-4 w-4 text-purple-600" />
           </Link>
-          <button className="flex items-center justify-between p-4 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors">
+          <Link 
+            to="/admin/job-postings"
+            className="flex items-center justify-between p-4 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors"
+          >
+            <div className="flex items-center space-x-3">
+              <Briefcase className="h-5 w-5 text-yellow-600" />
+              <span className="font-medium text-yellow-900">Manage Job Postings</span>
+            </div>
+            <ArrowRight className="h-4 w-4 text-yellow-600" />
+          </Link>
+          <Link 
+            to="/admin/settings"
+            className="flex items-center justify-between p-4 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors"
+          >
             <div className="flex items-center space-x-3">
               <Settings className="h-5 w-5 text-orange-600" />
               <span className="font-medium text-orange-900">Settings</span>
             </div>
             <ArrowRight className="h-4 w-4 text-orange-600" />
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -801,7 +794,38 @@ const AdminDashboard: React.FC = () => {
               <div className="p-6 space-y-4">
                 {Object.entries(selectedItem).map(([key, value]) => {
                   if (key === 'id' || key === 'createdAt' || key === 'updatedAt' || key === 'submittedAt' || key === 'registrationDate') return null;
-                  
+                  // Special handling for arrays of objects (e.g., history)
+                  if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null) {
+                    return (
+                      <div key={key}>
+                        <label className="text-sm font-medium text-gray-700 capitalize">
+                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                        </label>
+                        <div className="mt-1 overflow-x-auto">
+                          <table className="min-w-full text-xs border mt-2">
+                            <thead>
+                              <tr>
+                                {Object.keys(value[0]).map((col) => (
+                                  <th key={col} className="px-2 py-1 border-b text-left font-semibold">{col}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {value.map((row, idx) => (
+                                <tr key={idx}>
+                                  {Object.values(row).map((cell, cidx) => (
+                                    <td key={cidx} className="px-2 py-1 border-b">
+                                      {cell instanceof Date || cell?.toDate ? new Date(cell?.toDate?.() || cell).toLocaleString() : String(cell)}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  }
                   return (
                     <div key={key}>
                       <label className="text-sm font-medium text-gray-700 capitalize">

@@ -25,6 +25,7 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import BackButton from '../components/BackButton';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { sanitizeInput } from '../lib/validation';
 
 interface Hackathon {
   id: string;
@@ -35,6 +36,7 @@ interface Hackathon {
   thumbnail?: string;
   visibility: 'public' | 'private';
   status: 'draft' | 'published' | 'ongoing' | 'completed';
+  type: 'hackathon' | 'competition' | 'networking';
   startDate?: any;
   endDate?: any;
   registrationDeadline?: any;
@@ -67,6 +69,7 @@ const HackathonPage: React.FC = () => {
     thumbnail: '',
     visibility: 'public' as 'public' | 'private',
     status: 'draft' as 'draft' | 'published' | 'ongoing' | 'completed',
+    type: 'hackathon' as 'hackathon' | 'competition' | 'networking',
     startDate: '',
     endDate: '',
     registrationDeadline: '',
@@ -111,6 +114,7 @@ const HackathonPage: React.FC = () => {
       thumbnail: '',
       visibility: 'public',
       status: 'draft',
+      type: 'hackathon',
       startDate: '',
       endDate: '',
       registrationDeadline: '',
@@ -132,6 +136,13 @@ const HackathonPage: React.FC = () => {
     try {
       const hackathonData = {
         ...hackathonForm,
+        title: sanitizeInput(hackathonForm.title),
+        description: sanitizeInput(hackathonForm.description),
+        content: sanitizeInput(hackathonForm.content),
+        tags: Array.isArray(hackathonForm.tags) ? hackathonForm.tags.map(sanitizeInput) : [],
+        thumbnail: sanitizeInput(hackathonForm.thumbnail || ''),
+        prizes: Array.isArray(hackathonForm.prizes) ? hackathonForm.prizes.map(sanitizeInput) : [],
+        requirements: Array.isArray(hackathonForm.requirements) ? hackathonForm.requirements.map(sanitizeInput) : [],
         authorId: userProfile.uid,
         authorName: userProfile.displayName,
         createdAt: new Date(),
@@ -163,6 +174,13 @@ const HackathonPage: React.FC = () => {
     try {
       const updateData = {
         ...hackathonForm,
+        title: sanitizeInput(hackathonForm.title),
+        description: sanitizeInput(hackathonForm.description),
+        content: sanitizeInput(hackathonForm.content),
+        tags: Array.isArray(hackathonForm.tags) ? hackathonForm.tags.map(sanitizeInput) : [],
+        thumbnail: sanitizeInput(hackathonForm.thumbnail || ''),
+        prizes: Array.isArray(hackathonForm.prizes) ? hackathonForm.prizes.map(sanitizeInput) : [],
+        requirements: Array.isArray(hackathonForm.requirements) ? hackathonForm.requirements.map(sanitizeInput) : [],
         updatedAt: new Date(),
         startDate: hackathonForm.startDate ? new Date(hackathonForm.startDate) : null,
         endDate: hackathonForm.endDate ? new Date(hackathonForm.endDate) : null,
@@ -201,6 +219,7 @@ const HackathonPage: React.FC = () => {
       thumbnail: hackathon.thumbnail || '',
       visibility: hackathon.visibility,
       status: hackathon.status,
+      type: hackathon.type,
       startDate: hackathon.startDate ? new Date(hackathon.startDate.toDate()).toISOString().slice(0, 16) : '',
       endDate: hackathon.endDate ? new Date(hackathon.endDate.toDate()).toISOString().slice(0, 16) : '',
       registrationDeadline: hackathon.registrationDeadline ? new Date(hackathon.registrationDeadline.toDate()).toISOString().slice(0, 16) : '',
@@ -558,6 +577,20 @@ const HackathonPage: React.FC = () => {
                     placeholder="Detailed hackathon information, rules, and guidelines..."
                     required
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Type *</label>
+                  <select
+                    value={hackathonForm.type}
+                    onChange={(e) => setHackathonForm(prev => ({ ...prev, type: e.target.value as any }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    required
+                  >
+                    <option value="hackathon">Hackathon</option>
+                    <option value="competition">Competition</option>
+                    <option value="networking">Networking</option>
+                  </select>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

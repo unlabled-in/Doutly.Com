@@ -1,4 +1,19 @@
 // Enhanced Email service with updated contact information and job application emails
+import { EmailTemplateService } from './database';
+
+const templateCache: Record<string, { subject: string; html: string }> = {};
+
+async function getEmailTemplate(name: string): Promise<{ subject: string; html: string }> {
+  if (templateCache[name]) return templateCache[name];
+  const templates = await EmailTemplateService.getAll();
+  const found = templates.documents.find((t: any) => t.name === name);
+  if (found) {
+    templateCache[name] = { subject: found.subject, html: found.html };
+    return templateCache[name];
+  }
+  throw new Error(`Email template '${name}' not found`);
+}
+
 export interface EmailData {
   to: string;
   subject: string;
@@ -29,105 +44,23 @@ export class EmailService {
   }
 
   static async sendJobApplicationConfirmation(email: string, name: string, jobTitle: string): Promise<boolean> {
-    const subject = `Application Received - ${jobTitle} Position at Doutly`;
-    
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 30px;">
-          <h1 style="color: #3b82f6; margin: 0;">Doutly</h1>
-          <p style="color: #6b7280; margin: 5px 0;">Education Reimagined</p>
-        </div>
-        
-        <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
-          <h2 style="color: white; margin: 0 0 10px 0;">Thank You for Your Application!</h2>
-          <p style="color: #e0e7ff; margin: 0; font-size: 18px;">
-            We've received your application for the ${jobTitle} position.
-          </p>
-        </div>
-        
-        <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-          <h3 style="color: #374151; margin: 0 0 15px 0;">What's Next:</h3>
-          <ul style="color: #6b7280; margin: 0; padding-left: 20px;">
-            <li>Our HR team will review your application within 5-7 business days</li>
-            <li>If your profile matches our requirements, we'll contact you for the next steps</li>
-            <li>Please keep an eye on your email for updates</li>
-            <li>Feel free to reach out if you have any questions</li>
-          </ul>
-        </div>
-        
-        <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-          <h3 style="color: #1d4ed8; margin: 0 0 15px 0;">Application Details:</h3>
-          <p style="color: #374151; margin: 0;">
-            <strong>Position:</strong> ${jobTitle}<br>
-            <strong>Applicant:</strong> ${name}<br>
-            <strong>Email:</strong> ${email}<br>
-            <strong>Application Date:</strong> ${new Date().toLocaleDateString()}
-          </p>
-        </div>
-        
-        <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; text-align: center; color: #6b7280; font-size: 14px;">
-          <p>If you have any questions, feel free to contact us at <a href="mailto:${this.SUPPORT_EMAIL}" style="color: #3b82f6;">${this.SUPPORT_EMAIL}</a></p>
-          <p>Or call us at ${this.PHONE}</p>
-          <p style="margin: 10px 0 0 0;">© 2024 Doutly. All rights reserved.</p>
-        </div>
-      </div>
-    `;
-
-    return this.sendEmail({ to: email, subject, html });
+    const { subject, html } = await getEmailTemplate('job_application_confirmation');
+    const renderedHtml = html
+      .replace(/{{name}}/g, name)
+      .replace(/{{jobTitle}}/g, jobTitle)
+      .replace(/{{email}}/g, email)
+      .replace(/{{date}}/g, new Date().toLocaleDateString());
+    return this.sendEmail({ to: email, subject, html: renderedHtml });
   }
 
   static async sendPartnershipApplicationConfirmation(email: string, name: string, organizationName: string): Promise<boolean> {
-    const subject = `Partnership Application Received - ${organizationName}`;
-    
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 30px;">
-          <h1 style="color: #3b82f6; margin: 0;">Doutly</h1>
-          <p style="color: #6b7280; margin: 5px 0;">Education Reimagined</p>
-        </div>
-        
-        <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
-          <h2 style="color: white; margin: 0 0 10px 0;">Partnership Application Received!</h2>
-          <p style="color: #d1fae5; margin: 0; font-size: 18px;">
-            Thank you for your interest in partnering with Doutly.
-          </p>
-        </div>
-        
-        <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-          <h3 style="color: #166534; margin: 0 0 15px 0;">What's Next:</h3>
-          <ul style="color: #374151; margin: 0; padding-left: 20px;">
-            <li>Our partnership team will review your application within 24-48 hours</li>
-            <li>We'll schedule a call to discuss collaboration opportunities</li>
-            <li>Our team will prepare a customized partnership proposal</li>
-            <li>We'll work together to create amazing educational experiences</li>
-          </ul>
-        </div>
-        
-        <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-          <h3 style="color: #1d4ed8; margin: 0 0 15px 0;">Application Details:</h3>
-          <p style="color: #374151; margin: 0;">
-            <strong>Organization:</strong> ${organizationName}<br>
-            <strong>Contact Person:</strong> ${name}<br>
-            <strong>Email:</strong> ${email}<br>
-            <strong>Application Date:</strong> ${new Date().toLocaleDateString()}
-          </p>
-        </div>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <p style="color: #374151; margin: 0;">
-            We're excited about the possibility of working together to impact education in India!
-          </p>
-        </div>
-        
-        <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; text-align: center; color: #6b7280; font-size: 14px;">
-          <p>If you have any questions, contact us at <a href="mailto:${this.SUPPORT_EMAIL}" style="color: #3b82f6;">${this.SUPPORT_EMAIL}</a></p>
-          <p>Or call us at ${this.PHONE}</p>
-          <p style="margin: 10px 0 0 0;">© 2024 Doutly. All rights reserved.</p>
-        </div>
-      </div>
-    `;
-
-    return this.sendEmail({ to: email, subject, html });
+    const { subject, html } = await getEmailTemplate('partnership_application_confirmation');
+    const renderedHtml = html
+      .replace(/{{name}}/g, name)
+      .replace(/{{organizationName}}/g, organizationName)
+      .replace(/{{email}}/g, email)
+      .replace(/{{date}}/g, new Date().toLocaleDateString());
+    return this.sendEmail({ to: email, subject, html: renderedHtml });
   }
 
   static async sendApprovalEmail(email: string, name: string, type: 'tutor' | 'partnership'): Promise<boolean> {

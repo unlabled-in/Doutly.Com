@@ -222,6 +222,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (user.email!.endsWith('@doutly.com') && userDoc.role !== detectedRole) {
               const updatedProfile = { ...userDoc, role: detectedRole };
               try {
+                // Only update if userDoc exists
                 await UserService.update(user.uid, { 
                   role: detectedRole,
                   lastLoginAt: new Date()
@@ -230,7 +231,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 userDoc = updatedProfile;
               } catch (updateError) {
                 console.warn('Failed to update user role:', updateError);
-                // Update lastLoginAt separately
+                // Update lastLoginAt separately if userDoc exists
                 try {
                   await UserService.update(user.uid, { lastLoginAt: new Date() }, user.uid);
                 } catch (loginUpdateError) {

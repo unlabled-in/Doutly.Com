@@ -216,6 +216,54 @@ export interface StandardizedJobApplication {
   priority: 'low' | 'medium' | 'high';
 }
 
+export interface StandardizedHackathon {
+  id?: string;
+  title: string;
+  description: string;
+  content: string;
+  tags: string[];
+  thumbnail?: string;
+  visibility: 'public' | 'private';
+  status: 'draft' | 'published' | 'ongoing' | 'completed';
+  startDate?: Date | Timestamp | null;
+  endDate?: Date | Timestamp | null;
+  registrationDeadline?: Date | Timestamp | null;
+  maxParticipants?: number;
+  currentParticipants: number;
+  prizes: string[];
+  requirements: string[];
+  authorId: string;
+  authorName: string;
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
+  views: number;
+  registrations: number;
+}
+
+export interface StandardizedJobPosting {
+  id?: string;
+  title: string;
+  department: string;
+  location: string;
+  type: string;
+  experience: string;
+  salary: string;
+  description: string;
+  requirements: string[];
+  benefits: string[];
+  posted: string;
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
+}
+
+export interface StandardizedEmailTemplate {
+  id?: string;
+  name: string;
+  subject: string;
+  html: string;
+  updatedAt: Date | Timestamp;
+}
+
 // Generic database operations with enhanced error handling and offline support
 export class DatabaseService {
   // Create document with validation and audit trail
@@ -661,6 +709,60 @@ export class DatabaseService {
     };
   }
 
+  static standardizeHackathon(data: any): StandardizedHackathon {
+    return {
+      id: data.id,
+      title: data.title || '',
+      description: data.description || '',
+      content: data.content || '',
+      tags: data.tags || [],
+      thumbnail: data.thumbnail || null,
+      visibility: data.visibility || 'public',
+      status: data.status || 'draft',
+      startDate: data.startDate ? new Date(data.startDate) : null,
+      endDate: data.endDate ? new Date(data.endDate) : null,
+      registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline) : null,
+      maxParticipants: data.maxParticipants || null,
+      currentParticipants: data.currentParticipants || 0,
+      prizes: data.prizes || [],
+      requirements: data.requirements || [],
+      authorId: data.authorId || '',
+      authorName: data.authorName || '',
+      createdAt: data.createdAt || new Date(),
+      updatedAt: data.updatedAt || new Date(),
+      views: data.views || 0,
+      registrations: data.registrations || 0
+    };
+  }
+
+  static standardizeJobPosting(data: any): StandardizedJobPosting {
+    return {
+      id: data.id,
+      title: data.title || '',
+      department: data.department || '',
+      location: data.location || '',
+      type: data.type || '',
+      experience: data.experience || '',
+      salary: data.salary || '',
+      description: data.description || '',
+      requirements: data.requirements || [],
+      benefits: data.benefits || [],
+      posted: data.posted || '',
+      createdAt: data.createdAt || new Date(),
+      updatedAt: data.updatedAt || new Date()
+    };
+  }
+
+  static standardizeEmailTemplate(data: any): StandardizedEmailTemplate {
+    return {
+      id: data.id,
+      name: data.name || '',
+      subject: data.subject || '',
+      html: data.html || '',
+      updatedAt: data.updatedAt || new Date()
+    };
+  }
+
   // Audit logging
   static async createAuditLog(logData: {
     action: string;
@@ -766,6 +868,39 @@ export const JobApplicationService = {
     DatabaseService.getDocuments('job_applications', constraints, pageSize, lastDoc),
   subscribe: (constraints: QueryConstraint[], callback: (data: any[]) => void, cacheKey?: string) =>
     DatabaseService.subscribeToCollection('job_applications', constraints, callback, cacheKey)
+};
+
+export const HackathonService = {
+  create: (data: any, userId?: string) => DatabaseService.createDocument('hackathons', data, userId),
+  update: (id: string, data: any, userId?: string) => DatabaseService.updateDocument('hackathons', id, data, userId),
+  delete: (id: string, userId?: string) => DatabaseService.deleteDocument('hackathons', id, userId),
+  get: (id: string) => DatabaseService.getDocument('hackathons', id),
+  getAll: (constraints?: QueryConstraint[], pageSize?: number, lastDoc?: DocumentSnapshot) => 
+    DatabaseService.getDocuments('hackathons', constraints, pageSize, lastDoc),
+  subscribe: (constraints: QueryConstraint[], callback: (data: any[]) => void, cacheKey?: string) =>
+    DatabaseService.subscribeToCollection('hackathons', constraints, callback, cacheKey)
+};
+
+export const JobPostingService = {
+  create: (data: any, userId?: string) => DatabaseService.createDocument('job_postings', data, userId),
+  update: (id: string, data: any, userId?: string) => DatabaseService.updateDocument('job_postings', id, data, userId),
+  delete: (id: string, userId?: string) => DatabaseService.deleteDocument('job_postings', id, userId),
+  get: (id: string) => DatabaseService.getDocument('job_postings', id),
+  getAll: (constraints?: QueryConstraint[], pageSize?: number, lastDoc?: DocumentSnapshot) => 
+    DatabaseService.getDocuments('job_postings', constraints, pageSize, lastDoc),
+  subscribe: (constraints: QueryConstraint[], callback: (data: any[]) => void, cacheKey?: string) =>
+    DatabaseService.subscribeToCollection('job_postings', constraints, callback, cacheKey)
+};
+
+export const EmailTemplateService = {
+  create: (data: any, userId?: string) => DatabaseService.createDocument('email_templates', data, userId),
+  update: (id: string, data: any, userId?: string) => DatabaseService.updateDocument('email_templates', id, data, userId),
+  delete: (id: string, userId?: string) => DatabaseService.deleteDocument('email_templates', id, userId),
+  get: (id: string) => DatabaseService.getDocument('email_templates', id),
+  getAll: (constraints?: QueryConstraint[], pageSize?: number, lastDoc?: DocumentSnapshot) => 
+    DatabaseService.getDocuments('email_templates', constraints, pageSize, lastDoc),
+  subscribe: (constraints: QueryConstraint[], callback: (data: any[]) => void, cacheKey?: string) =>
+    DatabaseService.subscribeToCollection('email_templates', constraints, callback, cacheKey)
 };
 
 // Connection status utility

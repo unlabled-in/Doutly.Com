@@ -19,6 +19,7 @@ import { EmailService } from '../lib/emailService';
 import { NotificationService } from '../lib/notificationService';
 import { useAuth } from '../contexts/AuthContext';
 import BackButton from '../components/BackButton';
+import { sanitizeInput } from '../lib/validation';
 
 const BecomePartner: React.FC = () => {
   const { userProfile } = useAuth();
@@ -140,11 +141,18 @@ const BecomePartner: React.FC = () => {
     try {
       const partnershipData = {
         ...formData,
+        organizationName: sanitizeInput(formData.organizationName),
+        contactName: sanitizeInput(formData.contactName),
+        email: sanitizeInput(formData.email),
+        website: sanitizeInput(formData.website),
+        eventType: sanitizeInput(formData.eventType),
+        targetAudience: sanitizeInput(formData.targetAudience),
+        message: sanitizeInput(formData.message),
         type: 'partnership_application',
         status: 'pending',
         submittedAt: new Date(),
-        priority: formData.budget.includes('₹10,00,000+') ? 'high' : 
-                 formData.budget.includes('₹5,00,000') ? 'medium' : 'low'
+        priority: formData.budget.includes('10,00,000+') ? 'high' : 
+                 formData.budget.includes('5,00,000') ? 'medium' : 'low'
       };
 
       await ApplicationService.create(partnershipData, userProfile?.uid);

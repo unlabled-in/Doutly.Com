@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Briefcase, 
   MapPin, 
@@ -21,6 +21,8 @@ import { JobApplicationService } from '../lib/database';
 import { EmailService } from '../lib/emailService';
 import { NotificationService } from '../lib/notificationService';
 import { useAuth } from '../contexts/AuthContext';
+import { sanitizeInput } from '../lib/validation';
+import { JobPostingService } from '../lib/database';
 
 const Careers: React.FC = () => {
   const { userProfile } = useAuth();
@@ -39,64 +41,14 @@ const Careers: React.FC = () => {
     experience: '',
     skills: userProfile?.skills || []
   });
+  const [jobs, setJobs] = useState<any[]>([]);
 
-  // Reduced to 3 mock jobs as requested
-  const jobs = [
-    {
-      id: 'senior-fullstack-dev',
-      title: 'Senior Full Stack Developer',
-      department: 'Engineering',
-      location: 'Remote',
-      type: 'Full-time',
-      experience: '3-5 years',
-      salary: '$80,000 - $120,000',
-      description: 'Join our engineering team to build scalable web applications using React, Node.js, and cloud technologies.',
-      requirements: [
-        'Strong experience with React and Node.js',
-        'Experience with cloud platforms (AWS/GCP)',
-        'Knowledge of database design and optimization',
-        'Excellent problem-solving skills'
-      ],
-      benefits: ['Health Insurance', 'Remote Work', 'Stock Options', 'Learning Budget'],
-      posted: '2 days ago'
-    },
-    {
-      id: 'product-manager',
-      title: 'Product Manager',
-      department: 'Product',
-      location: 'Hybrid',
-      type: 'Full-time',
-      experience: '2-4 years',
-      salary: '$70,000 - $100,000',
-      description: 'Lead product strategy and work with cross-functional teams to deliver exceptional user experiences.',
-      requirements: [
-        'Experience in product management',
-        'Strong analytical and communication skills',
-        'Understanding of user research and data analysis',
-        'Experience with agile methodologies'
-      ],
-      benefits: ['Health Insurance', 'Flexible Hours', 'Professional Development', 'Team Retreats'],
-      posted: '1 week ago'
-    },
-    {
-      id: 'ux-ui-designer',
-      title: 'UX/UI Designer',
-      department: 'Design',
-      location: 'Remote',
-      type: 'Contract',
-      experience: '2-3 years',
-      salary: '$60,000 - $85,000',
-      description: 'Create beautiful and intuitive user interfaces for our educational platform.',
-      requirements: [
-        'Proficiency in Figma and design systems',
-        'Strong portfolio of web and mobile designs',
-        'Understanding of user-centered design principles',
-        'Experience with prototyping and user testing'
-      ],
-      benefits: ['Flexible Schedule', 'Creative Freedom', 'Latest Design Tools', 'Portfolio Projects'],
-      posted: '3 days ago'
-    }
-  ];
+  useEffect(() => {
+    const unsubscribe = JobPostingService.subscribe([], (data) => {
+      setJobs(data);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const benefits = [
     {
@@ -171,15 +123,15 @@ const Careers: React.FC = () => {
     setLoading(true);
     try {
       const jobApplicationData = {
-        jobTitle: selectedJob.title,
+        jobTitle: sanitizeInput(selectedJob.title),
         jobId: selectedJob.id,
-        applicantName: applicationData.applicantName,
-        applicantEmail: applicationData.applicantEmail,
-        applicantPhone: applicationData.applicantPhone,
-        coverLetter: applicationData.coverLetter,
-        resumeLink: applicationData.resumeLink,
-        experience: applicationData.experience,
-        skills: applicationData.skills,
+        applicantName: sanitizeInput(applicationData.applicantName),
+        applicantEmail: sanitizeInput(applicationData.applicantEmail),
+        applicantPhone: sanitizeInput(applicationData.applicantPhone),
+        coverLetter: sanitizeInput(applicationData.coverLetter),
+        resumeLink: sanitizeInput(applicationData.resumeLink),
+        experience: sanitizeInput(applicationData.experience),
+        skills: Array.isArray(applicationData.skills) ? applicationData.skills.map(sanitizeInput) : [],
         status: 'pending',
         submittedAt: new Date(),
         priority: 'medium'

@@ -21,6 +21,7 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import BackButton from '../components/BackButton';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { sanitizeInput } from '../lib/validation';
 
 interface Post {
   id: string;
@@ -106,6 +107,11 @@ const CreatorPage: React.FC = () => {
     try {
       const postData = {
         ...postForm,
+        title: sanitizeInput(postForm.title),
+        description: sanitizeInput(postForm.description),
+        content: sanitizeInput(postForm.content),
+        tags: Array.isArray(postForm.tags) ? postForm.tags.map(sanitizeInput) : [],
+        thumbnail: sanitizeInput(postForm.thumbnail || ''),
         authorId: userProfile.uid,
         authorName: userProfile.displayName,
         createdAt: new Date(),
@@ -134,6 +140,11 @@ const CreatorPage: React.FC = () => {
     try {
       const updateData = {
         ...postForm,
+        title: sanitizeInput(postForm.title),
+        description: sanitizeInput(postForm.description),
+        content: sanitizeInput(postForm.content),
+        tags: Array.isArray(postForm.tags) ? postForm.tags.map(sanitizeInput) : [],
+        thumbnail: sanitizeInput(postForm.thumbnail || ''),
         updatedAt: new Date(),
         publishDate: postForm.publishDate ? new Date(postForm.publishDate) : null
       };

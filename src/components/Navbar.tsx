@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, GraduationCap, LogIn, UserPlus, Search } from 'lucide-react';
+import { Menu, X, GraduationCap, LogIn, UserPlus, Search, Brain } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationDropdown from './NotificationDropdown';
 
@@ -50,7 +50,7 @@ const Navbar: React.FC = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-3 group">
             <div className="p-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl group-hover:shadow-lg transition-all duration-300 transform group-hover:scale-110">
-              <GraduationCap className="h-6 w-6 text-white" />
+              <Brain className="h-6 w-6 text-white" />
             </div>
             <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               Doutly

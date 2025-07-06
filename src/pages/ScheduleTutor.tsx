@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import BackButton from '../components/BackButton';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { sanitizeInput } from '../lib/validation';
 
 const ScheduleTutor: React.FC = () => {
   const { userProfile } = useAuth();
@@ -95,8 +96,8 @@ const ScheduleTutor: React.FC = () => {
         studentName: userProfile.displayName,
         studentEmail: userProfile.email,
         studentPhone: userProfile.phone || '',
-        doubtDescription: formData.doubtDescription.trim(),
-        subject: formData.subject,
+        doubtDescription: sanitizeInput(formData.doubtDescription),
+        subject: sanitizeInput(formData.subject),
         tutorType: formData.tutorType as 'instant' | 'scheduled',
         scheduledDate: formData.scheduledDate || null,
         scheduledTime: formData.scheduledTime || null,
