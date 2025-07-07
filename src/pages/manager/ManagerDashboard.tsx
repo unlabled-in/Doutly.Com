@@ -125,6 +125,19 @@ const ManagerDashboard: React.FC = () => {
     }
   };
 
+  const handleRevokeLead = async (leadId: string) => {
+    try {
+      await updateDoc(doc(db, 'leads', leadId), {
+        assignedTo: null,
+        assignedBy: null,
+        status: 'open',
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Error revoking lead:', error);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open': return 'bg-red-100 text-red-800';
@@ -300,22 +313,30 @@ const ManagerDashboard: React.FC = () => {
                               <Eye className="h-4 w-4" />
                             </button>
                             {lead.status === 'assigned' && (
-                              <select
-                                onChange={(e) => handleAssignLead(lead.id, e.target.value)}
-                                className="text-sm border border-gray-300 rounded px-2 py-1"
-                                defaultValue=""
-                              >
-                                <option value="" disabled>Assign to...</option>
-                                {dedupeUsersByEmail(users.filter(u => ['team_leader','tutor'].includes(u.role))).length === 0 ? (
-                                  <option disabled>No users available</option>
-                                ) : (
-                                  dedupeUsersByEmail(users.filter(u => ['team_leader','tutor'].includes(u.role))).map((user) => (
-                                    <option key={user.uid} value={user.email}>
-                                      {getUserDisplayName(user)} ({user.role})
-                                    </option>
-                                  ))
-                                )}
-                              </select>
+                              <>
+                                <select
+                                  onChange={(e) => handleAssignLead(lead.id, e.target.value)}
+                                  className="text-sm border border-gray-300 rounded px-2 py-1"
+                                  defaultValue=""
+                                >
+                                  <option value="" disabled>Assign to...</option>
+                                  {dedupeUsersByEmail(users.filter(u => ['team_leader','tutor'].includes(u.role))).length === 0 ? (
+                                    <option disabled>No users available</option>
+                                  ) : (
+                                    dedupeUsersByEmail(users.filter(u => ['team_leader','tutor'].includes(u.role))).map((user) => (
+                                      <option key={user.uid} value={user.email}>
+                                        {getUserDisplayName(user)} ({user.role})
+                                      </option>
+                                    ))
+                                  )}
+                                </select>
+                                <button
+                                  onClick={() => handleRevokeLead(lead.id)}
+                                  className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors ml-2"
+                                >
+                                  Revoke
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>

@@ -94,6 +94,50 @@ const AdminDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [users, setUsers] = useState<any[]>([]);
+  const { signUp } = useAuth();
+  // State for admin user creation
+  const [newUser, setNewUser] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    displayName: '',
+    role: 'manager',
+  });
+  const [userCreateLoading, setUserCreateLoading] = useState(false);
+  const [userCreateError, setUserCreateError] = useState('');
+  const [userCreateSuccess, setUserCreateSuccess] = useState('');
+
+  const handleNewUserChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setNewUser(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUserCreateError('');
+    setUserCreateSuccess('');
+    if (newUser.password !== newUser.confirmPassword) {
+      setUserCreateError('Passwords do not match');
+      return;
+    }
+    if (newUser.password.length < 6) {
+      setUserCreateError('Password must be at least 6 characters long');
+      return;
+    }
+    setUserCreateLoading(true);
+    try {
+      await signUp(newUser.email, newUser.password, {
+        displayName: newUser.displayName,
+        role: newUser.role,
+      });
+      setUserCreateSuccess('User created successfully!');
+      setNewUser({ email: '', password: '', confirmPassword: '', displayName: '', role: 'manager' });
+    } catch (err: any) {
+      setUserCreateError(err.message || 'Failed to create user');
+    } finally {
+      setUserCreateLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Subscribe to leads
@@ -179,6 +223,19 @@ const AdminDashboard: React.FC = () => {
       }
     } catch (error) {
       console.error('Error deleting item:', error);
+    }
+  };
+
+  const handleRevokeLead = async (leadId: string) => {
+    try {
+      await LeadService.update(leadId, {
+        assignedTo: null,
+        assignedBy: null,
+        status: 'open',
+        updatedAt: new Date()
+      }, userProfile?.uid);
+    } catch (error) {
+      console.error('Error revoking lead:', error);
     }
   };
 
@@ -441,6 +498,14 @@ const AdminDashboard: React.FC = () => {
                             </option>
                           ))}
                         </select>
+                      )}
+                      {lead.status === 'assigned' && (
+                        <button
+                          onClick={() => handleRevokeLead(lead.id)}
+                          className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors ml-2"
+                        >
+                          Revoke
+                        </button>
                       )}
                     </div>
                   </div>
@@ -728,7 +793,97 @@ const AdminDashboard: React.FC = () => {
       case 'overview':
         return renderOverview();
       case 'leads':
-        return renderLeads();
+        return (
+          <>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+              <h2 className="text-lg font-semibold mb-4">Create New User (Any Role)</h2>
+              <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={handleCreateUser}>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    name="displayName"
+                    value={newUser.displayName}
+                    onChange={handleNewUserChange}
+                    className="w-full px-3 py-2 border rounded"
+                    placeholder="Enter full name"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={newUser.email}
+                    onChange={handleNewUserChange}
+                    className="w-full px-3 py-2 border rounded"
+                    placeholder="Enter email"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Password</label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={newUser.password}
+                    onChange={handleNewUserChange}
+                    className="w-full px-3 py-2 border rounded"
+                    placeholder="Enter password"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Confirm Password</label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    value={newUser.confirmPassword}
+                    onChange={handleNewUserChange}
+                    className="w-full px-3 py-2 border rounded"
+                    placeholder="Confirm password"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Role</label>
+                  <select
+                    name="role"
+                    value={newUser.role}
+                    onChange={handleNewUserChange}
+                    className="w-full px-3 py-2 border rounded"
+                    required
+                  >
+                    <option value="manager">Manager</option>
+                    <option value="team_leader">Team Leader</option>
+                    <option value="tutor">Tutor</option>
+                    <option value="freelancer">Freelancer</option>
+                    <option value="student">Student</option>
+                    <option value="admin">Admin</option>
+                    <option value="vertical_head">Vertical Head</option>
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    disabled={userCreateLoading}
+                    className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {userCreateLoading ? 'Creating...' : 'Create User'}
+                  </button>
+                </div>
+                {userCreateError && (
+                  <div className="col-span-2 text-red-600 mt-2">{userCreateError}</div>
+                )}
+                {userCreateSuccess && (
+                  <div className="col-span-2 text-green-600 mt-2">{userCreateSuccess}</div>
+                )}
+              </form>
+            </div>
+            {renderLeads()}
+          </>
+        );
       case 'applications':
         return renderApplications();
       case 'events':

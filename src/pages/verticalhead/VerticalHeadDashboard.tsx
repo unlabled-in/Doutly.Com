@@ -123,6 +123,19 @@ const VerticalHeadDashboard: React.FC = () => {
     }
   };
 
+  const handleRevokeLead = async (leadId: string) => {
+    try {
+      await updateDoc(doc(db, 'leads', leadId), {
+        assignedTo: null,
+        assignedBy: null,
+        status: 'open',
+        updatedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Error revoking lead:', error);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open': return 'bg-red-100 text-red-800';
@@ -302,6 +315,14 @@ const VerticalHeadDashboard: React.FC = () => {
                                   ))
                                 )}
                               </select>
+                            )}
+                            {lead.status === 'assigned' && (
+                              <button
+                                onClick={() => handleRevokeLead(lead.id)}
+                                className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors ml-2"
+                              >
+                                Revoke
+                              </button>
                             )}
                           </div>
                         </div>
