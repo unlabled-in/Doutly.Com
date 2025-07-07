@@ -95,45 +95,46 @@ const LandingPage: React.FC = () => {
     }
   ];
 
-  const events = [
-    {
-      title: 'Web Development Bootcamp',
-      date: 'Dec 15, 2024',
-      time: '10:00 AM',
-      type: 'Workshop',
-      institution: 'Tech University',
-      attendees: 150,
-      price: 'Free',
-      image: 'https://images.pexels.com/photos/3861958/pexels-photo-3861958.jpeg?auto=compress&cs=tinysrgb&w=400'
-    },
-    {
-      title: 'AI/ML Hackathon',
-      date: 'Dec 20, 2024',
-      time: '9:00 AM',
-      type: 'Competition',
-      institution: 'Innovation Hub',
-      attendees: 300,
-      price: '₹500',
-      image: 'https://images.pexels.com/photos/3861969/pexels-photo-3861969.jpeg?auto=compress&cs=tinysrgb&w=400'
-    },
-    {
-      title: 'Career Fair 2024',
-      date: 'Dec 25, 2024',
-      time: '11:00 AM',
-      type: 'Networking',
-      institution: 'Multiple Partners',
-      attendees: 500,
-      price: 'Free',
-      image: 'https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=400'
-    }
-  ];
+  // Remove events and stats arrays
+  // const events = [
+  //   {
+  //     title: 'Web Development Bootcamp',
+  //     date: 'Dec 15, 2024',
+  //     time: '10:00 AM',
+  //     type: 'Workshop',
+  //     institution: 'Tech University',
+  //     attendees: 150,
+  //     price: 'Free',
+  //     image: 'https://images.pexels.com/photos/3861958/pexels-photo-3861958.jpeg?auto=compress&cs=tinysrgb&w=400'
+  //   },
+  //   {
+  //     title: 'AI/ML Hackathon',
+  //     date: 'Dec 20, 2024',
+  //     time: '9:00 AM',
+  //     type: 'Competition',
+  //     institution: 'Innovation Hub',
+  //     attendees: 300,
+  //     price: '₹500',
+  //     image: 'https://images.pexels.com/photos/3861969/pexels-photo-3861969.jpeg?auto=compress&cs=tinysrgb&w=400'
+  //   },
+  //   {
+  //     title: 'Career Fair 2024',
+  //     date: 'Dec 25, 2024',
+  //     time: '11:00 AM',
+  //     type: 'Networking',
+  //     institution: 'Multiple Partners',
+  //     attendees: 500,
+  //     price: 'Free',
+  //     image: 'https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=400'
+  //   }
+  // ];
 
-  const stats = [
-    { label: 'Students Served', value: '1M+', icon: Users },
-    { label: 'Expert Tutors', value: '10K+', icon: Award },
-    { label: 'Success Rate', value: '95%', icon: TrendingUp },
-    { label: 'Cities Covered', value: '100+', icon: Globe }
-  ];
+  // const stats = [
+  //   { label: 'Students Served', value: '1M+', icon: Users },
+  //   { label: 'Expert Tutors', value: '10K+', icon: Award },
+  //   { label: 'Success Rate', value: '95%', icon: TrendingUp },
+  //   { label: 'Cities Covered', value: '100+', icon: Globe }
+  // ];
 
   return (
     <>
@@ -227,7 +228,8 @@ const LandingPage: React.FC = () => {
                 </Link>
               </div>
 
-              <div className="pt-12 animate-fade-in-up delay-800">
+              {/* Remove all references to events and stats in the render */}
+              {/* <div className="pt-12 animate-fade-in-up delay-800">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
                   {stats.map((stat, index) => (
                     <div key={index} className="text-center animate-counter" style={{animationDelay: `${index * 200}ms`}}>
@@ -239,7 +241,7 @@ const LandingPage: React.FC = () => {
                     </div>
                   ))}
                 </div>
-              </div>
+              </div> */}
             </div>
           </div>
         </section>
@@ -357,7 +359,8 @@ const LandingPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {events.map((event, index) => (
+              {/* Remove all references to events and stats in the render */}
+              {/* {events.map((event, index) => (
                 <div key={index} className="group bg-white rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-4 animate-fade-in-up" style={{animationDelay: `${index * 200}ms`}}>
                   <div className="relative h-48 overflow-hidden">
                     <img 
@@ -408,17 +411,18 @@ const LandingPage: React.FC = () => {
                     </Link>
                   </div>
                 </div>
-              ))}
+              ))} */}
             </div>
 
-            <div className="text-center mt-12">
+            {/* Remove all references to events and stats in the render */}
+            {/* <div className="text-center mt-12">
               <Link 
                 to="/events"
                 className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-green-600 to-teal-600 text-white font-semibold rounded-2xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 animate-fade-in-up delay-600"
               >
                 View All Events <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
-            </div>
+            </div> */}
           </div>
         </section>
 

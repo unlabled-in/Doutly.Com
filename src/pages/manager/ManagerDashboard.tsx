@@ -15,6 +15,7 @@ import { collection, query, onSnapshot, orderBy, where, updateDoc, doc } from 'f
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import BackButton from '../../components/BackButton';
+import { UserService } from '../../lib/database';
 
 interface Lead {
   id: string;
@@ -40,6 +41,7 @@ const ManagerDashboard: React.FC = () => {
   const [filter, setFilter] = useState('assigned');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [users, setUsers] = useState<any[]>([]);
 
   // Remove mock teamLeaders and tutors arrays
   // const teamLeaders = [
@@ -99,6 +101,16 @@ const ManagerDashboard: React.FC = () => {
 
     setFilteredLeads(filtered);
   }, [leads, filter, searchTerm]);
+
+  useEffect(() => {
+    // Fetch users for assignment dropdown
+    const unsubscribeUsers = UserService.subscribe([], (usersData) => {
+      setUsers(usersData);
+    });
+    return () => {
+      unsubscribeUsers();
+    };
+  }, []);
 
   const handleAssignLead = async (leadId: string, assignTo: string) => {
     try {
@@ -164,6 +176,23 @@ const ManagerDashboard: React.FC = () => {
   //     bg: 'bg-purple-100'
   //   }
   // ];
+
+  // Helper function to get display name from email if displayName is missing
+  const getUserDisplayName = (user) => {
+    if (user.displayName && user.displayName.trim() !== '') return user.displayName;
+    if (user.email) return user.email.split('@')[0].split('.')[0];
+    return 'User';
+  };
+
+  // Helper to deduplicate users by email
+  const dedupeUsersByEmail = (users) => {
+    const seen = new Set();
+    return users.filter(u => {
+      if (seen.has(u.email)) return false;
+      seen.add(u.email);
+      return true;
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -277,21 +306,15 @@ const ManagerDashboard: React.FC = () => {
                                 defaultValue=""
                               >
                                 <option value="" disabled>Assign to...</option>
-                                {/* Remove mock teamLeaders and tutors arrays */}
-                                {/* <optgroup label="Team Leaders">
-                                  {teamLeaders.map((tl) => (
-                                    <option key={tl.email} value={tl.email}>
-                                      {tl.name}
+                                {dedupeUsersByEmail(users.filter(u => ['team_leader','tutor'].includes(u.role))).length === 0 ? (
+                                  <option disabled>No users available</option>
+                                ) : (
+                                  dedupeUsersByEmail(users.filter(u => ['team_leader','tutor'].includes(u.role))).map((user) => (
+                                    <option key={user.uid} value={user.email}>
+                                      {getUserDisplayName(user)} ({user.role})
                                     </option>
-                                  ))}
-                                </optgroup>
-                                <optgroup label="Tutors">
-                                  {tutors.map((tutor) => (
-                                    <option key={tutor.email} value={tutor.email}>
-                                      {tutor.name} ({tutor.subject})
-                                    </option>
-                                  ))}
-                                </optgroup> */}
+                                  ))
+                                )}
                               </select>
                             )}
                           </div>
@@ -312,35 +335,47 @@ const ManagerDashboard: React.FC = () => {
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Team Leaders</h4>
                   {/* Remove mock teamLeaders and tutors arrays */}
-                  {/* {teamLeaders.map((tl, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg mb-2">
-                      <div>
-                        <h5 className="font-medium text-gray-900">{tl.name}</h5>
-                        <p className="text-sm text-gray-600">Team Leader</p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                        <span className="text-xs text-gray-500">Active</span>
-                      </div>
+                  {dedupeUsersByEmail(users.filter(u => u.role === 'team_leader')).length === 0 ? (
+                    <div className="p-3 bg-blue-50 rounded-lg text-center text-sm text-gray-600">
+                      No Team Leaders assigned yet.
                     </div>
-                  ))} */}
+                  ) : (
+                    dedupeUsersByEmail(users.filter(u => u.role === 'team_leader')).map((tl, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg mb-2">
+                        <div>
+                          <h5 className="font-medium text-gray-900">{getUserDisplayName(tl)}</h5>
+                          <p className="text-sm text-gray-600">Team Leader</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                          <span className="text-xs text-gray-500">Active</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
                 
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Tutors</h4>
                   {/* Remove mock teamLeaders and tutors arrays */}
-                  {/* {tutors.map((tutor, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg mb-2">
-                      <div>
-                        <h5 className="font-medium text-gray-900">{tutor.name}</h5>
-                        <p className="text-sm text-gray-600">{tutor.subject}</p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                        <span className="text-xs text-gray-500">Available</span>
-                      </div>
+                  {dedupeUsersByEmail(users.filter(u => u.role === 'tutor')).length === 0 ? (
+                    <div className="p-3 bg-green-50 rounded-lg text-center text-sm text-gray-600">
+                      No Tutors assigned yet.
                     </div>
-                  ))} */}
+                  ) : (
+                    dedupeUsersByEmail(users.filter(u => u.role === 'tutor')).map((tutor, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg mb-2">
+                        <div>
+                          <h5 className="font-medium text-gray-900">{getUserDisplayName(tutor)}</h5>
+                          <p className="text-sm text-gray-600">{tutor.subject}</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                          <span className="text-xs text-gray-500">Available</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>

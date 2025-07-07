@@ -27,7 +27,7 @@ import {
 import { collection, query, onSnapshot, orderBy, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { LeadService, ApplicationService, EventRegistrationService, JobApplicationService, JobPostingService } from '../../lib/database';
+import { LeadService, ApplicationService, EventRegistrationService, JobApplicationService, JobPostingService, UserService } from '../../lib/database';
 import BackButton from '../../components/BackButton';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -93,12 +93,7 @@ const AdminDashboard: React.FC = () => {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-
-  const managers = [
-    { name: 'Sarah Johnson', email: 'sarah.manager@doutly.com' },
-    { name: 'Mike Chen', email: 'mike.manager@doutly.com' },
-    { name: 'Lisa Wang', email: 'lisa.manager@doutly.com' },
-  ];
+  const [users, setUsers] = useState<any[]>([]);
 
   useEffect(() => {
     // Subscribe to leads
@@ -122,11 +117,17 @@ const AdminDashboard: React.FC = () => {
       setJobApplications(jobsData);
     });
 
+    // Fetch users for assignment dropdown
+    const unsubscribeUsers = UserService.subscribe([], (usersData) => {
+      setUsers(usersData);
+    });
+
     return () => {
       unsubscribeLeads();
       unsubscribeApplications();
       unsubscribeEvents();
       unsubscribeJobs();
+      unsubscribeUsers();
     };
   }, []);
 
@@ -434,9 +435,9 @@ const AdminDashboard: React.FC = () => {
                           defaultValue=""
                         >
                           <option value="" disabled>Assign to...</option>
-                          {managers.map((manager) => (
-                            <option key={manager.email} value={manager.email}>
-                              {manager.name}
+                          {dedupeUsersByEmail(users.filter(u => ['manager','team_leader','tutor'].includes(u.role))).map((user) => (
+                            <option key={user.uid} value={user.email}>
+                              {getUserDisplayName(user)} ({user.role})
                             </option>
                           ))}
                         </select>
@@ -737,6 +738,23 @@ const AdminDashboard: React.FC = () => {
       default:
         return renderOverview();
     }
+  };
+
+  // Helper function to get display name from email if displayName is missing
+  const getUserDisplayName = (user: any) => {
+    if (user.displayName && user.displayName.trim() !== '') return user.displayName;
+    if (user.email) return user.email.split('@')[0].split('.')[0];
+    return 'User';
+  };
+
+  // Helper to deduplicate users by email
+  const dedupeUsersByEmail = (users: any[]) => {
+    const seen = new Set();
+    return users.filter(u => {
+      if (seen.has(u.email)) return false;
+      seen.add(u.email);
+      return true;
+    });
   };
 
   return (

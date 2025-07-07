@@ -16,6 +16,7 @@ import { collection, query, onSnapshot, orderBy, updateDoc, doc } from 'firebase
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import BackButton from '../../components/BackButton';
+import { UserService } from '../../lib/database';
 
 interface Lead {
   id: string;
@@ -41,6 +42,7 @@ const VerticalHeadDashboard: React.FC = () => {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [users, setUsers] = useState<any[]>([]);
 
   // Remove mock managers and teamLeaders arrays
   // const managers = [
@@ -97,6 +99,16 @@ const VerticalHeadDashboard: React.FC = () => {
 
     setFilteredLeads(filtered);
   }, [leads, filter, searchTerm]);
+
+  useEffect(() => {
+    // Fetch users for assignment dropdown
+    const unsubscribeUsers = UserService.subscribe([], (usersData) => {
+      setUsers(usersData);
+    });
+    return () => {
+      unsubscribeUsers();
+    };
+  }, []);
 
   const handleAssignLead = async (leadId: string, assignTo: string) => {
     try {
@@ -162,6 +174,23 @@ const VerticalHeadDashboard: React.FC = () => {
   //     bg: 'bg-green-100'
   //   }
   // ];
+
+  // Helper function to get display name from email if displayName is missing
+  const getUserDisplayName = (user) => {
+    if (user.displayName && user.displayName.trim() !== '') return user.displayName;
+    if (user.email) return user.email.split('@')[0].split('.')[0];
+    return 'User';
+  };
+
+  // Helper to deduplicate users by email
+  const dedupeUsersByEmail = (users) => {
+    const seen = new Set();
+    return users.filter(u => {
+      if (seen.has(u.email)) return false;
+      seen.add(u.email);
+      return true;
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -263,8 +292,15 @@ const VerticalHeadDashboard: React.FC = () => {
                                 defaultValue=""
                               >
                                 <option value="" disabled>Assign to...</option>
-                                {/* Remove mock managers and teamLeaders arrays */}
-                                {/* The options for assignment are now empty as per the edit hint */}
+                                {dedupeUsersByEmail(users.filter(u => ['manager','team_leader'].includes(u.role))).length === 0 ? (
+                                  <option disabled>No users available</option>
+                                ) : (
+                                  dedupeUsersByEmail(users.filter(u => ['manager','team_leader'].includes(u.role))).map((user) => (
+                                    <option key={user.uid} value={user.email}>
+                                      {getUserDisplayName(user)} ({user.role})
+                                    </option>
+                                  ))
+                                )}
                               </select>
                             )}
                           </div>
