@@ -37,47 +37,22 @@ const RegistrationManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRegistration, setSelectedRegistration] = useState<Registration | null>(null);
 
-  // Mock data for demonstration
-  const mockRegistrations: Registration[] = [
-    {
-      id: '1',
-      name: 'John Smith',
-      email: 'john.smith@email.com',
-      phone: '+1-555-0123',
-      eventTitle: 'Web Development Bootcamp',
-      eventType: 'Workshop',
-      registrationDate: new Date('2024-12-10'),
-      status: 'pending',
-      institution: 'Tech University',
-      additionalInfo: 'Interested in full-stack development'
-    },
-    {
-      id: '2',
-      name: 'Sarah Johnson',
-      email: 'sarah.j@email.com',
-      phone: '+1-555-0124',
-      eventTitle: 'AI/ML Hackathon 2024',
-      eventType: 'Competition',
-      registrationDate: new Date('2024-12-09'),
-      status: 'approved',
-      institution: 'Data Science Institute'
-    },
-    {
-      id: '3',
-      name: 'Mike Chen',
-      email: 'mike.chen@email.com',
-      eventTitle: 'Career Fair 2024',
-      eventType: 'Networking',
-      registrationDate: new Date('2024-12-08'),
-      status: 'pending',
-      additionalInfo: 'Looking for internship opportunities'
-    }
-  ];
-
   useEffect(() => {
     // In a real implementation, you would fetch from Firebase
-    setRegistrations(mockRegistrations);
-    setLoading(false);
+    setLoading(true);
+    const registrationsRef = collection(db, 'registrations');
+    const q = query(registrationsRef, orderBy('registrationDate', 'desc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedRegistrations: Registration[] = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Registration[];
+      setRegistrations(fetchedRegistrations);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -101,6 +76,8 @@ const RegistrationManagement: React.FC = () => {
   const handleStatusUpdate = async (registrationId: string, newStatus: 'approved' | 'rejected') => {
     try {
       // In a real implementation, update Firebase
+      const registrationRef = doc(db, 'registrations', registrationId);
+      await updateDoc(registrationRef, { status: newStatus });
       setRegistrations(prev => 
         prev.map(reg => 
           reg.id === registrationId 

@@ -8,17 +8,17 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   build: {
+    sourcemap: true, // Enable source maps for production
+    minify: 'terser',
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
           firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
-          ui: ['lucide-react']
         }
       }
     },
     target: 'esnext',
-    minify: 'terser',
     terserOptions: {
       compress: {
         drop_console: true,

@@ -26,6 +26,8 @@ import CreatorPage from './pages/CreatorPage';
 import HackathonPage from './pages/HackathonPage';
 import SettingsPage from './pages/admin/SettingsPage';
 import JobPostingsPage from './pages/admin/JobPostingsPage';
+import FreelancerSignUp from './pages/freelancer/FreelancerSignUp';
+import TutorSignUp from './pages/tutor/TutorSignUp';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ 
   children, 
@@ -100,6 +102,14 @@ const AppRoutes: React.FC = () => {
           <Route 
             path="/signin" 
             element={currentUser ? <Navigate to={getDashboardPath()} replace /> : <SignIn />} 
+          />
+          <Route 
+            path="/signup-freelancer" 
+            element={currentUser ? <Navigate to={getDashboardPath()} replace /> : <FreelancerSignUp />} 
+          />
+          <Route 
+            path="/signup-tutor" 
+            element={currentUser ? <Navigate to={getDashboardPath()} replace /> : <TutorSignUp />} 
           />
           
           {/* Protected Routes */}

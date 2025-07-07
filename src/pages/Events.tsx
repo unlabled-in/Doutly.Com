@@ -213,8 +213,11 @@ const Events: React.FC = () => {
               <div className="relative">
                 <img 
                   src={event.image || event.thumbnail || 'https://via.placeholder.com/400x200?text=No+Image'} 
-                  alt={event.title}
+                  alt={`Event: ${event.title}`}
                   className="w-full h-48 object-cover"
+                  loading="lazy"
+                  width="400"
+                  height="192"
                 />
                 <div className="absolute top-4 left-4">
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${getTypeColor(event.type)}`}>

@@ -363,8 +363,11 @@ const CreatorPage: React.FC = () => {
                   {post.thumbnail && (
                     <img 
                       src={post.thumbnail} 
-                      alt={post.title}
+                      alt={`Post: ${post.title}`}
                       className="w-full h-48 object-cover"
+                      loading="lazy"
+                      width="400"
+                      height="192"
                     />
                   )}
                   <div className="p-6">

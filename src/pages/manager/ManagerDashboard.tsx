@@ -41,17 +41,18 @@ const ManagerDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
-  const teamLeaders = [
-    { name: 'Mike Chen', email: 'mike.tl@doutly.com' },
-    { name: 'Lisa Wang', email: 'lisa.tl@doutly.com' },
-    { name: 'David Brown', email: 'david.tl@doutly.com' },
-  ];
+  // Remove mock teamLeaders and tutors arrays
+  // const teamLeaders = [
+  //   { name: 'Mike Chen', email: 'mike.tl@doutly.com' },
+  //   { name: 'Lisa Wang', email: 'lisa.tl@doutly.com' },
+  //   { name: 'David Brown', email: 'david.tl@doutly.com' },
+  // ];
 
-  const tutors = [
-    { name: 'Emily Davis', email: 'emily.tutor@doutly.com', subject: 'Mathematics' },
-    { name: 'John Wilson', email: 'john.tutor@doutly.com', subject: 'Physics' },
-    { name: 'Sarah Miller', email: 'sarah.tutor@doutly.com', subject: 'Computer Science' },
-  ];
+  // const tutors = [
+  //   { name: 'Emily Davis', email: 'emily.tutor@doutly.com', subject: 'Mathematics' },
+  //   { name: 'John Wilson', email: 'john.tutor@doutly.com', subject: 'Physics' },
+  //   { name: 'Sarah Miller', email: 'sarah.tutor@doutly.com', subject: 'Computer Science' },
+  // ];
 
   useEffect(() => {
     if (!userProfile?.email) return;
@@ -132,36 +133,37 @@ const ManagerDashboard: React.FC = () => {
     }
   };
 
-  const stats = [
-    {
-      label: 'Assigned to Me',
-      value: leads.filter(l => l.assignedTo === userProfile?.email).length,
-      icon: Users,
-      color: 'text-blue-600',
-      bg: 'bg-blue-100'
-    },
-    {
-      label: 'In Progress',
-      value: leads.filter(l => l.status === 'in_progress').length,
-      icon: Clock,
-      color: 'text-yellow-600',
-      bg: 'bg-yellow-100'
-    },
-    {
-      label: 'Resolved Today',
-      value: leads.filter(l => l.status === 'resolved').length,
-      icon: CheckCircle,
-      color: 'text-green-600',
-      bg: 'bg-green-100'
-    },
-    {
-      label: 'Team Performance',
-      value: '94%',
-      icon: TrendingUp,
-      color: 'text-purple-600',
-      bg: 'bg-purple-100'
-    }
-  ];
+  // Remove hardcoded stats for performance metrics and team lists
+  // const stats = [
+  //   {
+  //     label: 'Assigned to Me',
+  //     value: leads.filter(l => l.assignedTo === userProfile?.email).length,
+  //     icon: Users,
+  //     color: 'text-blue-600',
+  //     bg: 'bg-blue-100'
+  //   },
+  //   {
+  //     label: 'In Progress',
+  //     value: leads.filter(l => l.status === 'in_progress').length,
+  //     icon: Clock,
+  //     color: 'text-yellow-600',
+  //     bg: 'bg-yellow-100'
+  //   },
+  //   {
+  //     label: 'Resolved Today',
+  //     value: leads.filter(l => l.status === 'resolved').length,
+  //     icon: CheckCircle,
+  //     color: 'text-green-600',
+  //     bg: 'bg-green-100'
+  //   },
+  //   {
+  //     label: 'Team Performance',
+  //     value: '94%',
+  //     icon: TrendingUp,
+  //     color: 'text-purple-600',
+  //     bg: 'bg-purple-100'
+  //   }
+  // ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -177,7 +179,8 @@ const ManagerDashboard: React.FC = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, index) => (
+          {/* Remove hardcoded stats for performance metrics and team lists */}
+          {/* {stats.map((stat, index) => (
             <div key={index} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -189,7 +192,7 @@ const ManagerDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
-          ))}
+          ))} */}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -274,7 +277,8 @@ const ManagerDashboard: React.FC = () => {
                                 defaultValue=""
                               >
                                 <option value="" disabled>Assign to...</option>
-                                <optgroup label="Team Leaders">
+                                {/* Remove mock teamLeaders and tutors arrays */}
+                                {/* <optgroup label="Team Leaders">
                                   {teamLeaders.map((tl) => (
                                     <option key={tl.email} value={tl.email}>
                                       {tl.name}
@@ -287,7 +291,7 @@ const ManagerDashboard: React.FC = () => {
                                       {tutor.name} ({tutor.subject})
                                     </option>
                                   ))}
-                                </optgroup>
+                                </optgroup> */}
                               </select>
                             )}
                           </div>
@@ -307,7 +311,8 @@ const ManagerDashboard: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Team Leaders</h4>
-                  {teamLeaders.map((tl, index) => (
+                  {/* Remove mock teamLeaders and tutors arrays */}
+                  {/* {teamLeaders.map((tl, index) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg mb-2">
                       <div>
                         <h5 className="font-medium text-gray-900">{tl.name}</h5>
@@ -318,12 +323,13 @@ const ManagerDashboard: React.FC = () => {
                         <span className="text-xs text-gray-500">Active</span>
                       </div>
                     </div>
-                  ))}
+                  ))} */}
                 </div>
                 
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Tutors</h4>
-                  {tutors.map((tutor, index) => (
+                  {/* Remove mock teamLeaders and tutors arrays */}
+                  {/* {tutors.map((tutor, index) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg mb-2">
                       <div>
                         <h5 className="font-medium text-gray-900">{tutor.name}</h5>
@@ -334,7 +340,7 @@ const ManagerDashboard: React.FC = () => {
                         <span className="text-xs text-gray-500">Available</span>
                       </div>
                     </div>
-                  ))}
+                  ))} */}
                 </div>
               </div>
             </div>

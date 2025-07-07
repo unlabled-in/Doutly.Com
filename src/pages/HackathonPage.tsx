@@ -443,8 +443,11 @@ const HackathonPage: React.FC = () => {
                   {hackathon.thumbnail && (
                     <img 
                       src={hackathon.thumbnail} 
-                      alt={hackathon.title}
+                      alt={`Hackathon: ${hackathon.title}`}
                       className="w-full h-48 object-cover"
+                      loading="lazy"
+                      width="400"
+                      height="192"
                     />
                   )}
                   <div className="p-6">

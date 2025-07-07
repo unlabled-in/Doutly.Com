@@ -95,33 +95,6 @@ const LandingPage: React.FC = () => {
     }
   ];
 
-  const testimonials = [
-    {
-      name: 'Arjun Sharma',
-      role: 'IIT Delhi Student',
-      content: 'Doutly helped me understand complex algorithms through personalized tutoring. The instant doubt resolution feature is a game-changer!',
-      rating: 5,
-      image: 'https://images.pexels.com/photos/3778876/pexels-photo-3778876.jpeg?auto=compress&cs=tinysrgb&w=150',
-      course: 'Computer Science'
-    },
-    {
-      name: 'Priya Patel',
-      role: 'Freelance Developer',
-      content: 'As a tutor on Doutly, I\'ve been able to share my knowledge while earning ₹50,000+ monthly. The platform makes it easy to connect with students.',
-      rating: 5,
-      image: 'https://images.pexels.com/photos/3769021/pexels-photo-3769021.jpeg?auto=compress&cs=tinysrgb&w=150',
-      course: 'Web Development'
-    },
-    {
-      name: 'Dr. Rajesh Kumar',
-      role: 'IIM Bangalore Professor',
-      content: 'Our institution has partnered with Doutly to host virtual workshops. The engagement and reach have exceeded our expectations.',
-      rating: 5,
-      image: 'https://images.pexels.com/photos/3778876/pexels-photo-3778876.jpeg?auto=compress&cs=tinysrgb&w=150',
-      course: 'Business Studies'
-    }
-  ];
-
   const events = [
     {
       title: 'Web Development Bootcamp',
@@ -389,8 +362,11 @@ const LandingPage: React.FC = () => {
                   <div className="relative h-48 overflow-hidden">
                     <img 
                       src={event.image} 
-                      alt={event.title}
+                      alt={`Event: ${event.title}`}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      loading="lazy"
+                      width="400"
+                      height="192"
                     />
                     <div className="absolute top-4 left-4">
                       <span className="bg-white/90 backdrop-blur-sm text-gray-800 px-3 py-1 rounded-full text-sm font-medium">
@@ -459,32 +435,7 @@ const LandingPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {testimonials.map((testimonial, index) => (
-                <div key={index} className="group bg-white rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-4 animate-fade-in-up" style={{animationDelay: `${index * 200}ms`}}>
-                  <div className="space-y-6">
-                    <div className="flex space-x-1">
-                      {[...Array(testimonial.rating)].map((_, i) => (
-                        <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                      ))}
-                    </div>
-                    
-                    <p className="text-gray-700 leading-relaxed italic">"{testimonial.content}"</p>
-                    
-                    <div className="flex items-center space-x-4">
-                      <img 
-                        src={testimonial.image} 
-                        alt={testimonial.name}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                      <div>
-                        <h4 className="font-semibold text-gray-900">{testimonial.name}</h4>
-                        <p className="text-sm text-gray-600">{testimonial.role}</p>
-                        <p className="text-xs text-blue-600 font-medium">{testimonial.course}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+              
             </div>
           </div>
         </section>

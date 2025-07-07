@@ -41,12 +41,13 @@ const TeamLeaderDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
-  const tutors = [
-    { name: 'Emily Davis', email: 'emily.tutor@doutly.com', subject: 'Mathematics' },
-    { name: 'John Wilson', email: 'john.tutor@doutly.com', subject: 'Physics' },
-    { name: 'Sarah Miller', email: 'sarah.tutor@doutly.com', subject: 'Computer Science' },
-    { name: 'Mark Johnson', email: 'mark.tutor@doutly.com', subject: 'Chemistry' },
-  ];
+  // Remove mock tutors array
+  // const tutors = [
+  //   { name: 'Emily Davis', email: 'emily.tutor@doutly.com', subject: 'Mathematics' },
+  //   { name: 'John Wilson', email: 'john.tutor@doutly.com', subject: 'Physics' },
+  //   { name: 'Sarah Miller', email: 'sarah.tutor@doutly.com', subject: 'Computer Science' },
+  //   { name: 'Mark Johnson', email: 'mark.tutor@doutly.com', subject: 'Chemistry' },
+  // ];
 
   useEffect(() => {
     if (!userProfile?.email) return;
@@ -137,36 +138,37 @@ const TeamLeaderDashboard: React.FC = () => {
     }
   };
 
-  const stats = [
-    {
-      label: 'Assigned to Me',
-      value: leads.filter(l => l.assignedTo === userProfile?.email).length,
-      icon: Users,
-      color: 'text-blue-600',
-      bg: 'bg-blue-100'
-    },
-    {
-      label: 'In Progress',
-      value: leads.filter(l => l.status === 'in_progress').length,
-      icon: Clock,
-      color: 'text-yellow-600',
-      bg: 'bg-yellow-100'
-    },
-    {
-      label: 'Resolved Today',
-      value: leads.filter(l => l.status === 'resolved').length,
-      icon: CheckCircle,
-      color: 'text-green-600',
-      bg: 'bg-green-100'
-    },
-    {
-      label: 'Team Performance',
-      value: '91%',
-      icon: TrendingUp,
-      color: 'text-purple-600',
-      bg: 'bg-purple-100'
-    }
-  ];
+  // Remove hardcoded stats for performance metrics and team lists
+  // const stats = [
+  //   {
+  //     label: 'Assigned to Me',
+  //     value: leads.filter(l => l.assignedTo === userProfile?.email).length,
+  //     icon: Users,
+  //     color: 'text-blue-600',
+  //     bg: 'bg-blue-100'
+  //   },
+  //   {
+  //     label: 'In Progress',
+  //     value: leads.filter(l => l.status === 'in_progress').length,
+  //     icon: Clock,
+  //     color: 'text-yellow-600',
+  //     bg: 'bg-yellow-100'
+  //   },
+  //   {
+  //     label: 'Resolved Today',
+  //     value: leads.filter(l => l.status === 'resolved').length,
+  //     icon: CheckCircle,
+  //     color: 'text-green-600',
+  //     bg: 'bg-green-100'
+  //   },
+  //   {
+  //     label: 'Team Performance',
+  //     value: '91%',
+  //     icon: TrendingUp,
+  //     color: 'text-purple-600',
+  //     bg: 'bg-purple-100'
+  //   }
+  // ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -182,7 +184,8 @@ const TeamLeaderDashboard: React.FC = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, index) => (
+          {/* Remove hardcoded stats for performance metrics and team lists */}
+          {/* {stats.map((stat, index) => (
             <div key={index} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -194,7 +197,7 @@ const TeamLeaderDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
-          ))}
+          ))} */}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -279,11 +282,12 @@ const TeamLeaderDashboard: React.FC = () => {
                                 defaultValue=""
                               >
                                 <option value="" disabled>Assign to tutor...</option>
-                                {tutors.map((tutor) => (
+                                {/* Remove mock tutors array */}
+                                {/* {tutors.map((tutor) => (
                                   <option key={tutor.email} value={tutor.email}>
                                     {tutor.name} ({tutor.subject})
                                   </option>
-                                ))}
+                                ))} */}
                               </select>
                             )}
                             {lead.status === 'in_progress' && (
@@ -309,7 +313,8 @@ const TeamLeaderDashboard: React.FC = () => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">My Tutors</h3>
               <div className="space-y-3">
-                {tutors.map((tutor, index) => (
+                {/* Remove mock tutors array */}
+                {/* {tutors.map((tutor, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                     <div>
                       <h4 className="font-medium text-gray-900">{tutor.name}</h4>
@@ -320,7 +325,7 @@ const TeamLeaderDashboard: React.FC = () => {
                       <span className="text-xs text-gray-500">Available</span>
                     </div>
                   </div>
-                ))}
+                ))} */}
               </div>
             </div>
 

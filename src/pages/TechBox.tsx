@@ -482,8 +482,11 @@ const TechBox: React.FC = () => {
                 <div className="flex items-center space-x-4 mb-4">
                   <img 
                     src={story.image} 
-                    alt={story.name}
+                    alt={`Success story: ${story.name} - ${story.project}`}
                     className="w-12 h-12 rounded-full object-cover"
+                    loading="lazy"
+                    width="48"
+                    height="48"
                   />
                   <div>
                     <h3 className="font-semibold text-gray-900">{story.name}</h3>

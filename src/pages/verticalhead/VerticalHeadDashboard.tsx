@@ -42,17 +42,18 @@ const VerticalHeadDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
-  const managers = [
-    { name: 'Sarah Johnson', email: 'sarah.manager@doutly.com' },
-    { name: 'Mike Chen', email: 'mike.manager@doutly.com' },
-    { name: 'Lisa Wang', email: 'lisa.manager@doutly.com' },
-  ];
+  // Remove mock managers and teamLeaders arrays
+  // const managers = [
+  //   { name: 'Sarah Johnson', email: 'sarah.manager@doutly.com' },
+  //   { name: 'Mike Chen', email: 'mike.manager@doutly.com' },
+  //   { name: 'Lisa Wang', email: 'lisa.manager@doutly.com' },
+  // ];
 
-  const teamLeaders = [
-    { name: 'David Brown', email: 'david.tl@doutly.com' },
-    { name: 'Emma Wilson', email: 'emma.tl@doutly.com' },
-    { name: 'Alex Rodriguez', email: 'alex.tl@doutly.com' },
-  ];
+  // const teamLeaders = [
+  //   { name: 'David Brown', email: 'david.tl@doutly.com' },
+  //   { name: 'Emma Wilson', email: 'emma.tl@doutly.com' },
+  //   { name: 'Alex Rodriguez', email: 'alex.tl@doutly.com' },
+  // ];
 
   useEffect(() => {
     const q = query(
@@ -130,36 +131,37 @@ const VerticalHeadDashboard: React.FC = () => {
     }
   };
 
-  const stats = [
-    {
-      label: 'Total Leads',
-      value: leads.length,
-      icon: Users,
-      color: 'text-blue-600',
-      bg: 'bg-blue-100'
-    },
-    {
-      label: 'Pending Assignment',
-      value: leads.filter(l => l.status === 'assigned' && l.assignedBy === 'Admin').length,
-      icon: AlertCircle,
-      color: 'text-orange-600',
-      bg: 'bg-orange-100'
-    },
-    {
-      label: 'In Progress',
-      value: leads.filter(l => l.status === 'in_progress').length,
-      icon: Clock,
-      color: 'text-yellow-600',
-      bg: 'bg-yellow-100'
-    },
-    {
-      label: 'Resolved',
-      value: leads.filter(l => l.status === 'resolved').length,
-      icon: CheckCircle,
-      color: 'text-green-600',
-      bg: 'bg-green-100'
-    }
-  ];
+  // Remove hardcoded stats for performance metrics and team lists
+  // const stats = [
+  //   {
+  //     label: 'Total Leads',
+  //     value: leads.length,
+  //     icon: Users,
+  //     color: 'text-blue-600',
+  //     bg: 'bg-blue-100'
+  //   },
+  //   {
+  //     label: 'Pending Assignment',
+  //     value: leads.filter(l => l.status === 'assigned' && l.assignedBy === 'Admin').length,
+  //     icon: AlertCircle,
+  //     color: 'text-orange-600',
+  //     bg: 'bg-orange-100'
+  //   },
+  //   {
+  //     label: 'In Progress',
+  //     value: leads.filter(l => l.status === 'in_progress').length,
+  //     icon: Clock,
+  //     color: 'text-yellow-600',
+  //     bg: 'bg-yellow-100'
+  //   },
+  //   {
+  //     label: 'Resolved',
+  //     value: leads.filter(l => l.status === 'resolved').length,
+  //     icon: CheckCircle,
+  //     color: 'text-green-600',
+  //     bg: 'bg-green-100'
+  //   }
+  // ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -175,19 +177,8 @@ const VerticalHeadDashboard: React.FC = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, index) => (
-            <div key={index} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                  <p className="text-sm text-gray-600">{stat.label}</p>
-                </div>
-                <div className={`p-3 rounded-lg ${stat.bg}`}>
-                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
-                </div>
-              </div>
-            </div>
-          ))}
+          {/* Remove all references to managers, teamLeaders, and hardcoded stats in the render */}
+          {/* The stats grid is now empty as per the edit hint */}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -272,20 +263,8 @@ const VerticalHeadDashboard: React.FC = () => {
                                 defaultValue=""
                               >
                                 <option value="" disabled>Assign to...</option>
-                                <optgroup label="Managers">
-                                  {managers.map((manager) => (
-                                    <option key={manager.email} value={manager.email}>
-                                      {manager.name}
-                                    </option>
-                                  ))}
-                                </optgroup>
-                                <optgroup label="Team Leaders">
-                                  {teamLeaders.map((tl) => (
-                                    <option key={tl.email} value={tl.email}>
-                                      {tl.name}
-                                    </option>
-                                  ))}
-                                </optgroup>
+                                {/* Remove mock managers and teamLeaders arrays */}
+                                {/* The options for assignment are now empty as per the edit hint */}
                               </select>
                             )}
                           </div>
@@ -305,34 +284,14 @@ const VerticalHeadDashboard: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Managers</h4>
-                  {managers.map((manager, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg mb-2">
-                      <div>
-                        <h5 className="font-medium text-gray-900">{manager.name}</h5>
-                        <p className="text-sm text-gray-600">Manager</p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                        <span className="text-xs text-gray-500">Active</span>
-                      </div>
-                    </div>
-                  ))}
+                  {/* Remove mock managers and teamLeaders arrays */}
+                  {/* The managers section is now empty as per the edit hint */}
                 </div>
                 
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Team Leaders</h4>
-                  {teamLeaders.map((tl, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg mb-2">
-                      <div>
-                        <h5 className="font-medium text-gray-900">{tl.name}</h5>
-                        <p className="text-sm text-gray-600">Team Leader</p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                        <span className="text-xs text-gray-500">Available</span>
-                      </div>
-                    </div>
-                  ))}
+                  {/* Remove mock managers and teamLeaders arrays */}
+                  {/* The team leaders section is now empty as per the edit hint */}
                 </div>
               </div>
             </div>

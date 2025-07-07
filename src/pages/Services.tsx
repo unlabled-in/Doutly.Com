@@ -213,8 +213,11 @@ const Services: React.FC = () => {
                 <div className="flex items-center space-x-3">
                   <img 
                     src={testimonial.image} 
-                    alt={testimonial.name}
+                    alt={`Testimonial from ${testimonial.name}`}
                     className="w-10 h-10 rounded-full object-cover"
+                    loading="lazy"
+                    width="40"
+                    height="40"
                   />
                   <div>
                     <h4 className="font-semibold text-gray-900">{testimonial.name}</h4>

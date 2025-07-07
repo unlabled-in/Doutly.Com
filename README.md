@@ -31,6 +31,18 @@ Doutly is a next-generation education platform connecting students, tutors, free
 
 ---
 
+## 📧 Dashboard Email Formats
+
+- **Student Dashboard:** student@doutly.com
+- **Freelancer Dashboard:** freelancer@doutly.com
+- **Tutor Dashboard:** tutor@doutly.com
+- **Admin Dashboard:** admin@doutly.com
+- **Manager Dashboard:** manager@doutly.com
+- **Vertical Head Dashboard:** verticalhead@doutly.com
+- **Team Leader Dashboard:** teamleader@doutly.com
+
+---
+
 ## 🛠️ Tech Stack
 - **Frontend:** React, TypeScript, Vite, Tailwind CSS
 - **Backend/DB:** Firebase Auth, Firestore
@@ -132,3 +144,60 @@ If it works locally, push your changes and Netlify will pick up the fix on the n
 - **Rebuild locally and on Netlify**
 
 This should resolve your build error. If you see any new errors, please share the full message for further help!
+
+---
+
+## 1. **Why Source Maps Matter**
+Source maps let you analyze your bundle to see which code (your own, dependencies, Firebase, etc.) is taking up the most space. This is crucial for reducing bundle size and improving performance.
+
+---
+
+## 2. **How to Enable Source Maps in Vite**
+
+You need to tell Vite to generate source maps for production builds. Here’s how:
+
+### **Step-by-Step:**
+
+1. **Edit your `vite.config.ts`:**
+   - Add or update the `build.sourcemap` option to `true`.
+
+   ```ts
+   // vite.config.ts
+   import { defineConfig } from 'vite';
+   // ... existing code ...
+
+   export default defineConfig({
+     // ... existing config ...
+     build: {
+       sourcemap: true, // <-- Add this line
+     },
+   });
+   ```
+
+2. **Rebuild your project:**
+   ```sh
+   npm run build
+   ```
+
+3. **Run source-map-explorer again:**
+   ```sh
+   npx source-map-explorer dist/assets/*.js
+   ```
+
+---
+
+## 3. **Next Steps**
+
+- After you run the above, you’ll get a visual breakdown of what’s in your bundles.
+- Share the results (or screenshots) here, and I’ll help you identify what to optimize/remove/split.
+
+---
+
+## 4. **Other Quick Wins (While You’re Here)**
+- **Enable GZIP/Brotli on your host** (if not already).
+- **Check for large images** in your `public/` or `src/assets/` folders and optimize them.
+- **Review your imports:** If you’re importing all of Firebase, try to only import the modules you use.
+
+---
+
+Would you like help editing your `vite.config.ts` or interpreting the results after you run `source-map-explorer`?
