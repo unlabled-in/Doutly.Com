@@ -27,23 +27,6 @@ const SignUp: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const addSkill = () => {
-    if (skillInput.trim() && !formData.skills.includes(skillInput.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        skills: [...prev.skills, skillInput.trim()]
-      }));
-      setSkillInput('');
-    }
-  };
-
-  const removeSkill = (skill: string) => {
-    setFormData(prev => ({
-      ...prev,
-      skills: prev.skills.filter(s => s !== skill)
-    }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -55,6 +38,12 @@ const SignUp: React.FC = () => {
 
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long');
+      return;
+    }
+
+    if (!formData.phone) {
+      setError('Phone number is required');
+      setLoading(false);
       return;
     }
 
@@ -252,7 +241,7 @@ const SignUp: React.FC = () => {
             {/* Phone */}
             <div className="group">
               <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number (Optional)
+                Phone Number
               </label>
               <input
                 id="phone"
@@ -262,66 +251,8 @@ const SignUp: React.FC = () => {
                 onChange={handleInputChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 group-hover:border-purple-300 transform hover:scale-105"
                 placeholder="Enter your phone number"
+                required
               />
-            </div>
-
-            {/* Institution */}
-            <div className="group">
-              <label htmlFor="institution" className="block text-sm font-medium text-gray-700 mb-2">
-                School/College (Optional)
-              </label>
-              <input
-                id="institution"
-                name="institution"
-                type="text"
-                value={formData.institution}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 group-hover:border-purple-300 transform hover:scale-105"
-                placeholder="Enter your school/college"
-              />
-            </div>
-
-            {/* Skills */}
-            <div className="group">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Areas of Interest (Optional)
-              </label>
-              <div className="flex space-x-2 mb-3">
-                <input
-                  type="text"
-                  value={skillInput}
-                  onChange={(e) => setSkillInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 transform hover:scale-105"
-                  placeholder="Add subjects you're interested in"
-                />
-                <button
-                  type="button"
-                  onClick={addSkill}
-                  className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all duration-300 transform hover:scale-105"
-                >
-                  Add
-                </button>
-              </div>
-              {formData.skills.length > 0 && (
-                <div className="flex flex-wrap gap-2 animate-fade-in">
-                  {formData.skills.map((skill, index) => (
-                    <span
-                      key={index}
-                      className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm flex items-center space-x-1 animate-scale-in"
-                    >
-                      <span>{skill}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeSkill(skill)}
-                        className="text-purple-600 hover:text-purple-800 transition-colors"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Password */}

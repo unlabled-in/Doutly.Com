@@ -247,6 +247,50 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  // Add revoke and delete handlers for applications, events, and job applications
+  const handleRevokeApplication = async (id: string) => {
+    try {
+      await ApplicationService.update(id, { status: 'open', updatedAt: new Date(), assignedTo: null, assignedBy: null }, userProfile?.uid);
+    } catch (error) {
+      alert('Failed to revoke application');
+    }
+  };
+  const handleDeleteApplication = async (id: string) => {
+    try {
+      await ApplicationService.delete(id, userProfile?.uid);
+    } catch (error) {
+      alert('Failed to delete application');
+    }
+  };
+  const handleRevokeEvent = async (id: string) => {
+    try {
+      await EventRegistrationService.update(id, { status: 'open', updatedAt: new Date(), assignedTo: null, assignedBy: null }, userProfile?.uid);
+    } catch (error) {
+      alert('Failed to revoke event registration');
+    }
+  };
+  const handleDeleteEvent = async (id: string) => {
+    try {
+      await EventRegistrationService.delete(id, userProfile?.uid);
+    } catch (error) {
+      alert('Failed to delete event registration');
+    }
+  };
+  const handleRevokeJob = async (id: string) => {
+    try {
+      await JobApplicationService.update(id, { status: 'open', updatedAt: new Date(), assignedTo: null, assignedBy: null }, userProfile?.uid);
+    } catch (error) {
+      alert('Failed to revoke job application');
+    }
+  };
+  const handleDeleteJob = async (id: string) => {
+    try {
+      await JobApplicationService.delete(id, userProfile?.uid);
+    } catch (error) {
+      alert('Failed to delete job application');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open': return 'bg-red-100 text-red-800';
@@ -733,6 +777,24 @@ const AdminDashboard: React.FC = () => {
                           </button>
                         </div>
                       )}
+                      {app.status === 'assigned' && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to revoke this item?')) handleRevokeApplication(app.id);
+                          }}
+                          className="ml-2 px-3 py-1 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700 transition-colors"
+                        >
+                          Revoke
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to delete this item?')) handleDeleteApplication(app.id);
+                        }}
+                        className="ml-2 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -796,6 +858,24 @@ const AdminDashboard: React.FC = () => {
                           </button>
                         </div>
                       )}
+                      {reg.status === 'assigned' && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to revoke this item?')) handleRevokeEvent(reg.id);
+                          }}
+                          className="ml-2 px-3 py-1 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700 transition-colors"
+                        >
+                          Revoke
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to delete this item?')) handleDeleteEvent(reg.id);
+                        }}
+                        className="ml-2 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 </div>

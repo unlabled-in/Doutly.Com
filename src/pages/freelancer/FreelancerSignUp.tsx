@@ -16,7 +16,7 @@ const FreelancerSignUp: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [skillInput, setSkillInput] = useState('');
+  // Remove Areas of Interest field and all related logic (skills, skillInput, addSkill, removeSkill, etc.)
 
   const { signUp } = useAuth();
 
@@ -25,22 +25,7 @@ const FreelancerSignUp: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const addSkill = () => {
-    if (skillInput.trim() && !formData.skills.includes(skillInput.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        skills: [...prev.skills, skillInput.trim()]
-      }));
-      setSkillInput('');
-    }
-  };
-
-  const removeSkill = (skill: string) => {
-    setFormData(prev => ({
-      ...prev,
-      skills: prev.skills.filter(s => s !== skill)
-    }));
-  };
+  // Remove addSkill and removeSkill functions
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +36,12 @@ const FreelancerSignUp: React.FC = () => {
     }
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long');
+      return;
+    }
+    // Remove validation for skills
+    if (!formData.phone) {
+      setError('Phone number is required');
+      setLoading(false);
       return;
     }
     setLoading(true);
@@ -95,26 +86,21 @@ const FreelancerSignUp: React.FC = () => {
               <input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter your email" required />
             </div>
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">Phone Number (Optional)</label>
-              <input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter your phone number" />
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                Phone Number
+              </label>
+              <input
+                id="phone"
+                name="phone"
+                type="tel"
+                value={formData.phone}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 group-hover:border-blue-300 transform hover:scale-105"
+                placeholder="Enter your phone number"
+                required
+              />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Skills (Optional)</label>
-              <div className="flex space-x-2 mb-3">
-                <input type="text" value={skillInput} onChange={(e) => setSkillInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())} className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Add your skills" />
-                <button type="button" onClick={addSkill} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700">Add</button>
-              </div>
-              {formData.skills.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {formData.skills.map((skill, index) => (
-                    <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm flex items-center space-x-1">
-                      <span>{skill}</span>
-                      <button type="button" onClick={() => removeSkill(skill)} className="text-blue-600 hover:text-blue-800">×</button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Remove Areas of Interest field and all related logic (skills, skillInput, addSkill, removeSkill, etc.) */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">Password</label>
               <div className="relative">

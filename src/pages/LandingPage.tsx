@@ -136,6 +136,25 @@ const LandingPage: React.FC = () => {
   //   { label: 'Cities Covered', value: '100+', icon: Globe }
   // ];
 
+  // Add mock data for Success Stories with Indian names
+  const successStories = [
+    {
+      name: 'Ishaan Verma',
+      role: 'B.Tech Student',
+      feedback: 'Doutly cleared my toughest doubts and helped me excel in my academics. The tutors are patient and really know their stuff!'
+    },
+    {
+      name: 'Meera Reddy',
+      role: 'Freelancer & Project Enthusiast',
+      feedback: 'With Doutly, I found real projects and started earning while learning. The guidance on my capstone project was a game changer.'
+    },
+    {
+      name: 'Venatriks',
+      role: 'Start-up Success Story',
+      feedback: 'Doutly was our go-to for tech mentorship and team building. Their support helped us launch Venatriks and grow fast!'
+    }
+  ];
+
   return (
     <>
       <Helmet>
@@ -439,7 +458,16 @@ const LandingPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              
+              {successStories.map((story, idx) => (
+                <div key={idx} className="bg-white rounded-xl shadow p-6 flex flex-col items-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                    <span className="text-2xl font-bold text-blue-600">{story.name[0]}</span>
+                  </div>
+                  <h3 className="text-lg font-semibold mb-1">{story.name}</h3>
+                  <p className="text-sm text-gray-500 mb-2">{story.role}</p>
+                  <p className="text-gray-700 text-center">“{story.feedback}”</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
