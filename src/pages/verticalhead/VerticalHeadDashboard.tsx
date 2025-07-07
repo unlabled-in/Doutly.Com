@@ -58,6 +58,8 @@ const VerticalHeadDashboard: React.FC = () => {
   // ];
 
   useEffect(() => {
+    if (!userProfile?.email) return;
+
     const q = query(
       collection(db, 'leads'),
       orderBy('createdAt', 'desc')
@@ -68,13 +70,8 @@ const VerticalHeadDashboard: React.FC = () => {
         id: doc.id,
         ...doc.data()
       })) as Lead[];
-      
-      // Filter leads assigned to this vertical head or available for assignment
-      const vhLeads = leadsData.filter(lead => 
-        lead.assignedTo === userProfile?.email || 
-        (lead.status === 'assigned' && lead.assignedBy === 'Admin')
-      );
-      
+      // Only show leads assigned to this vertical head
+      const vhLeads = leadsData.filter(lead => lead.assignedTo === userProfile?.email);
       setLeads(vhLeads);
       setLoading(false);
     });

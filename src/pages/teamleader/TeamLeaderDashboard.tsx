@@ -64,13 +64,8 @@ const TeamLeaderDashboard: React.FC = () => {
         id: doc.id,
         ...doc.data()
       })) as Lead[];
-      
-      // Filter leads assigned to this team leader
-      const tlLeads = leadsData.filter(lead => 
-        lead.assignedTo === userProfile?.email || 
-        (lead.status === 'assigned' && (lead.assignedBy === 'Manager' || lead.assignedBy === 'Vertical Head'))
-      );
-      
+      // Only show leads assigned to this team leader
+      const tlLeads = leadsData.filter(lead => lead.assignedTo === userProfile?.email);
       setLeads(tlLeads);
       setLoading(false);
     });

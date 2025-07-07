@@ -59,7 +59,7 @@ const ManagerDashboard: React.FC = () => {
   useEffect(() => {
     if (!userProfile?.email) return;
 
-    // Query leads assigned to this manager or available for assignment
+    // Query leads assigned only to this manager
     const q = query(
       collection(db, 'leads'),
       orderBy('createdAt', 'desc')
@@ -70,13 +70,8 @@ const ManagerDashboard: React.FC = () => {
         id: doc.id,
         ...doc.data()
       })) as Lead[];
-      
-      // Filter leads that are assigned to this manager or need assignment
-      const managerLeads = leadsData.filter(lead => 
-        lead.assignedTo === userProfile?.email || 
-        (lead.status === 'assigned' && lead.assignedBy === userProfile?.displayName)
-      );
-      
+      // Only show leads assigned to this manager
+      const managerLeads = leadsData.filter(lead => lead.assignedTo === userProfile?.email);
       setLeads(managerLeads);
       setLoading(false);
     });
