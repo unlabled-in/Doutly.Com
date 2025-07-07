@@ -239,6 +239,14 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleDeleteLead = async (leadId: string) => {
+    try {
+      await LeadService.delete(leadId, userProfile?.uid);
+    } catch (error) {
+      alert('Failed to delete lead');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open': return 'bg-red-100 text-red-800';
@@ -502,12 +510,22 @@ const AdminDashboard: React.FC = () => {
                       )}
                       {lead.status === 'assigned' && (
                         <button
-                          onClick={() => handleRevokeLead(lead.id)}
-                          className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors ml-2"
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to revoke this lead?')) handleRevokeLead(lead.id);
+                          }}
+                          className="ml-2 px-3 py-1 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700 transition-colors"
                         >
                           Revoke
                         </button>
                       )}
+                      <button
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to delete this lead?')) handleDeleteLead(lead.id);
+                        }}
+                        className="ml-2 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 </div>

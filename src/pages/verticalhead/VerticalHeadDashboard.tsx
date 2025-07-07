@@ -10,9 +10,10 @@ import {
   Search,
   Eye,
   ArrowRight,
-  BarChart3
+  BarChart3,
+  Delete
 } from 'lucide-react';
-import { collection, query, onSnapshot, orderBy, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import BackButton from '../../components/BackButton';
