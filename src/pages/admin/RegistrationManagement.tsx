@@ -36,6 +36,8 @@ const RegistrationManagement: React.FC = () => {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRegistration, setSelectedRegistration] = useState<Registration | null>(null);
+  // Add a new state for ticket search
+  const [ticketSearch, setTicketSearch] = useState('');
 
   useEffect(() => {
     // In a real implementation, you would fetch from Firebase
@@ -55,8 +57,13 @@ const RegistrationManagement: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  // Filter registrations by ticket ID if ticketSearch is set
+  const filteredByTicket = ticketSearch
+    ? registrations.filter(r => r.id.toLowerCase().includes(ticketSearch.toLowerCase()))
+    : registrations;
+
   useEffect(() => {
-    let filtered = registrations;
+    let filtered = filteredByTicket;
 
     if (filter !== 'all') {
       filtered = filtered.filter(reg => reg.status === filter);
@@ -71,7 +78,7 @@ const RegistrationManagement: React.FC = () => {
     }
 
     setFilteredRegistrations(filtered);
-  }, [registrations, filter, searchTerm]);
+  }, [registrations, filter, searchTerm, ticketSearch]);
 
   const handleStatusUpdate = async (registrationId: string, newStatus: 'approved' | 'rejected') => {
     try {
@@ -149,6 +156,22 @@ const RegistrationManagement: React.FC = () => {
           <p className="text-gray-600 mt-2">
             Manage event registrations and approve participants
           </p>
+        </div>
+        {/* Ticket Search Bar */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative w-full max-w-xs">
+            <Search className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search by Ticket ID..."
+              value={ticketSearch}
+              onChange={e => setTicketSearch(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full"
+            />
+          </div>
+          {ticketSearch && (
+            <button className="text-sm text-gray-500 underline ml-2" onClick={() => setTicketSearch('')}>Clear</button>
+          )}
         </div>
 
         {/* Stats */}

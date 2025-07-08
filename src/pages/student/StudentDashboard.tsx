@@ -24,6 +24,9 @@ import {
 import { LeadService, EventRegistrationService } from '../../lib/database';
 import { useAuth } from '../../contexts/AuthContext';
 import BackButton from '../../components/BackButton';
+import AiTutorFloatingButton from '../../components/AiTutorFloatingButton';
+import { validateAndSanitizeLead } from '../../lib/validation';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 interface Lead {
   id: string;
@@ -51,6 +54,9 @@ const StudentDashboard: React.FC = () => {
   const [myLeads, setMyLeads] = useState<Lead[]>([]);
   const [myRegistrations, setMyRegistrations] = useState<EventRegistration[]>([]);
   const [loading, setLoading] = useState(true);
+  const [leadLoading, setLeadLoading] = useState(false);
+  const [leadSuccess, setLeadSuccess] = useState<string | null>(null);
+  const [leadError, setLeadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userProfile?.uid) return;
@@ -71,6 +77,48 @@ const StudentDashboard: React.FC = () => {
       unsubscribeRegistrations();
     };
   }, [userProfile]);
+
+  // Handler for AI Tutor lead creation
+  const handleAiTutorLead = async (question: string, aiAnswer: string) => {
+    if (!userProfile) return;
+    setLeadLoading(true);
+    setLeadSuccess(null);
+    setLeadError(null);
+    try {
+      // Generate a ticket number (simple random for now)
+      const ticketNumber = 'AI-' + Math.floor(100000 + Math.random() * 900000);
+      const now = new Date();
+      const leadData = {
+        ticketNumber,
+        type: 'tutor_request',
+        studentId: userProfile.uid,
+        studentName: userProfile.displayName,
+        studentEmail: userProfile.email,
+        studentPhone: userProfile.phone || '',
+        doubtDescription: aiAnswer, // Save the AI-generated answer as the description
+        subject: question.slice(0, 50) || 'AI Tutor Doubt',
+        tutorType: 'instant',
+        urgencyLevel: 'medium',
+        status: 'open',
+        priority: 'medium',
+        createdAt: now,
+        updatedAt: now,
+        notes: [],
+        source: 'AI Tutor',
+        value: 0,
+        conversionProbability: 50,
+        history: [{ action: 'created', timestamp: now, by: userProfile.uid, note: 'Lead created from AI Tutor' }]
+      };
+      const validLead = validateAndSanitizeLead(leadData);
+      await LeadService.create(validLead, userProfile.uid);
+      setLeadSuccess('Your request has been submitted! A tutor will contact you soon.');
+    } catch (err: any) {
+      setLeadError('Failed to create lead. Please try again.');
+      console.error(err);
+    } finally {
+      setLeadLoading(false);
+    }
+  };
 
   const quickActions = [
     {
@@ -197,6 +245,8 @@ const StudentDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Place the floating button at the root so it's always accessible */}
+        <AiTutorFloatingButton onLeadCreated={handleAiTutorLead} />
         {/* Header */}
         <div className="mb-8">
           <BackButton className="mb-4" />
