@@ -467,136 +467,142 @@ const AdminDashboard: React.FC = () => {
     </div>
   );
 
-  const renderLeads = () => (
-    <div className="space-y-6">
-      {/* Ticket Search Bar */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="relative w-full max-w-xs">
-          <Search className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search by Ticket ID..."
-            value={ticketSearch}
-            onChange={e => setTicketSearch(e.target.value)}
-            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full"
-          />
-        </div>
-        {ticketSearch && (
-          <button className="text-sm text-gray-500 underline ml-2" onClick={() => setTicketSearch('')}>Clear</button>
-        )}
-      </div>
-      {/* Leads Table/List (use filteredLeads instead of leads) */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-6 border-b border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Lead Management</h2>
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Search className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search leads..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">All Status</option>
-                <option value="open">Open</option>
-                <option value="assigned">Assigned</option>
-                <option value="in_progress">In Progress</option>
-                <option value="resolved">Resolved</option>
-              </select>
-            </div>
+  const renderLeads = () => {
+    // Define filteredLeads in the correct scope
+    const filteredLeads = ticketSearch
+      ? leads.filter(l => l.ticketNumber.toLowerCase().includes(ticketSearch.toLowerCase()))
+      : filterData(leads, 'studentName');
+    return (
+      <div className="space-y-6">
+        {/* Ticket Search Bar */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative w-full max-w-xs">
+            <Search className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search by Ticket ID..."
+              value={ticketSearch}
+              onChange={e => setTicketSearch(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full"
+            />
           </div>
-        </div>
-
-        <div className="max-h-96 overflow-y-auto">
-          {loading ? (
-            <div className="p-6 text-center">
-              <LoadingSpinner text="Loading leads..." />
-            </div>
-          ) : filteredLeads.length === 0 ? (
-            <div className="p-6 text-center">
-              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No leads found</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {filteredLeads.map((lead) => (
-                <div key={lead.id} className="p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <span className="font-mono text-sm font-medium text-blue-600">
-                          {lead.ticketNumber}
-                        </span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lead.status)}`}>
-                          {lead.status.replace('_', ' ')}
-                        </span>
-                      </div>
-                      <h3 className="font-semibold text-gray-900 mb-1">{lead.subject}</h3>
-                      <p className="text-sm text-gray-600 mb-2">
-                        by {lead.studentName} • {lead.studentEmail}
-                      </p>
-                      <p className="text-sm text-gray-500 line-clamp-2">
-                        {lead.doubtDescription}
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-2 ml-4">
-                      <button
-                        onClick={() => setSelectedItem(lead)}
-                        className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      {lead.status === 'open' && (
-                        <select
-                          onChange={(e) => handleAssignLead(lead.id, e.target.value)}
-                          className="text-sm border border-gray-300 rounded px-2 py-1"
-                          defaultValue=""
-                        >
-                          <option value="" disabled>Assign to...</option>
-                          {dedupeUsersByEmail(users.filter(u => ['manager','team_leader','tutor'].includes(u.role))).map((user) => (
-                            <option key={user.uid} value={user.email}>
-                              {getUserDisplayName(user)} ({user.role})
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                      {lead.status === 'assigned' && (
-                        <button
-                          onClick={() => {
-                            if (window.confirm('Are you sure you want to revoke this lead?')) handleRevokeLead(lead.id);
-                          }}
-                          className="ml-2 px-3 py-1 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700 transition-colors"
-                        >
-                          Revoke
-                        </button>
-                      )}
-                      <button
-                        onClick={() => {
-                          if (window.confirm('Are you sure you want to delete this lead?')) handleDeleteLead(lead.id);
-                        }}
-                        className="ml-2 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+          {ticketSearch && (
+            <button className="text-sm text-gray-500 underline ml-2" onClick={() => setTicketSearch('')}>Clear</button>
           )}
         </div>
+        {/* Leads Table/List (use filteredLeads instead of leads) */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+          <div className="p-6 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Lead Management</h2>
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <Search className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search leads..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">All Status</option>
+                  <option value="open">Open</option>
+                  <option value="assigned">Assigned</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="max-h-96 overflow-y-auto">
+            {loading ? (
+              <div className="p-6 text-center">
+                <LoadingSpinner text="Loading leads..." />
+              </div>
+            ) : filteredLeads.length === 0 ? (
+              <div className="p-6 text-center">
+                <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No leads found</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {filteredLeads.map((lead) => (
+                  <div key={lead.id} className="p-6 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <span className="font-mono text-sm font-medium text-blue-600">
+                            {lead.ticketNumber}
+                          </span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lead.status)}`}>
+                            {lead.status.replace('_', ' ')}
+                          </span>
+                        </div>
+                        <h3 className="font-semibold text-gray-900 mb-1">{lead.subject}</h3>
+                        <p className="text-sm text-gray-600 mb-2">
+                          by {lead.studentName} • {lead.studentEmail}
+                        </p>
+                        <p className="text-sm text-gray-500 line-clamp-2">
+                          {lead.doubtDescription}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2 ml-4">
+                        <button
+                          onClick={() => setSelectedItem(lead)}
+                          className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        {lead.status === 'open' && (
+                          <select
+                            onChange={(e) => handleAssignLead(lead.id, e.target.value)}
+                            className="text-sm border border-gray-300 rounded px-2 py-1"
+                            defaultValue=""
+                          >
+                            <option value="" disabled>Assign to...</option>
+                            {dedupeUsersByEmail(users.filter(u => ['manager','team_leader','tutor'].includes(u.role))).map((user) => (
+                              <option key={user.uid} value={user.email}>
+                                {getUserDisplayName(user)} ({user.role})
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        {lead.status === 'assigned' && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to revoke this lead?')) handleRevokeLead(lead.id);
+                            }}
+                            className="ml-2 px-3 py-1 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700 transition-colors"
+                          >
+                            Revoke
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this lead?')) handleDeleteLead(lead.id);
+                          }}
+                          className="ml-2 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderJobApplications = () => {
     const filteredJobs = filterData(jobApplications, 'jobTitle');
