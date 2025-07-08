@@ -8,21 +8,27 @@ const AiTutorFloatingButton: React.FC<{ onLeadCreated: (q: string, a: string) =>
 
   return (
     <>
+      {/* AI Tutor Label */}
+      <div className="fixed z-50 bottom-24 right-6 flex flex-col items-center select-none">
+        <span className="mb-2 px-4 py-1 bg-blue-100 text-blue-700 rounded-full shadow text-sm font-semibold border border-blue-200">
+          AI Tutor
+        </span>
+      </div>
       {/* Floating Button */}
       <button
-        className="fixed z-50 bottom-6 right-6 bg-gradient-to-br from-pink-500 via-yellow-400 to-blue-500 text-white rounded-full shadow-xl p-4 flex items-center justify-center hover:scale-110 focus:outline-none animate-bounce hover:animate-none transition-transform duration-200 border-4 border-white"
-        style={{ boxShadow: '0 6px 32px rgba(80,80,200,0.18)' }}
+        className="fixed z-50 bottom-6 right-6 bg-gradient-to-br from-blue-200 via-green-100 to-green-300 text-blue-700 rounded-full shadow-lg p-4 flex items-center justify-center hover:scale-110 focus:outline-none border-2 border-white transition-transform duration-200"
+        style={{ boxShadow: '0 4px 24px rgba(80,180,200,0.13)' }}
         onClick={() => setOpen(true)}
         aria-label="Open AI Tutor Chat"
       >
-        <GraduationCap className="h-8 w-8 drop-shadow-lg" />
+        <GraduationCap className="h-8 w-8 drop-shadow" />
       </button>
 
       {/* Modal Overlay */}
       {open && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black bg-opacity-40 animate-fadeInUp" onClick={() => setOpen(false)}>
           <div
-            className={`w-full ${fullScreen ? 'h-full max-w-full md:max-w-full rounded-none' : 'max-w-md md:max-w-lg'} bg-gradient-to-br from-blue-50 to-green-50 md:rounded-2xl rounded-t-2xl shadow-2xl p-0 md:p-4 relative flex flex-col transition-all duration-300`}
+            className={`w-full ${fullScreen ? 'h-full max-w-full md:max-w-full rounded-none p-0 md:p-0 border-2 border-blue-200 shadow-2xl bg-white animate-fadeIn' : 'max-w-md md:max-w-lg bg-gradient-to-br from-blue-50 to-green-50 md:rounded-2xl rounded-t-2xl shadow-2xl p-0 md:p-4'} relative flex flex-col transition-all duration-300`}
             style={{ minHeight: 400, maxHeight: fullScreen ? '100vh' : '80vh', overflow: 'auto' }}
             onClick={e => e.stopPropagation()}
           >
@@ -43,7 +49,7 @@ const AiTutorFloatingButton: React.FC<{ onLeadCreated: (q: string, a: string) =>
                 {fullScreen ? <Minimize2 className="h-6 w-6" /> : <Maximize2 className="h-6 w-6" />}
               </button>
             </div>
-            <div className={`flex-1 flex flex-col ${fullScreen ? 'h-full' : ''} pt-8 md:pt-0`}>
+            <div className={`flex-1 flex flex-col ${fullScreen ? 'h-full p-6 md:p-10' : ''} pt-8 md:pt-0`}>
               <AiTutorChat onLeadCreated={onLeadCreated} />
             </div>
           </div>
